@@ -1,6 +1,7 @@
+const fs = require('fs')
+const StreamValues = require('stream-json/streamers/StreamValues')
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
-const fs = require('fs')
 
 const fetch = require('node-fetch')
 const FormData = require('form-data')
@@ -47,19 +48,30 @@ api.on('error', (err) => {
 
 async function addFile(file) {
   const form = new FormData()
-  form.append('file', fs.createReadStream(file))
-  const body = await fetch(`http://${IPFS_HOST}:${IPFS_PORT}/api/v0/add?cid-version=0`, {
+  form.append('file', fs.createReadStream(file.path), file.name)
+  const body = await fetch(`http://${IPFS_HOST}:${IPFS_PORT}/api/v0/add?cid-version=0&wrap-with-directory=true`, {
     method: 'POST',
     body: form,
   })
-  return body.json()
+
+  // Build string of objects into array
+  const text = await body.text()
+  const json = text
+    .split('\n')
+    .filter((obj) => obj.length > 0)
+    .map((obj) => JSON.parse(obj))
+
+  return json
 }
 
 async function processMetadata(file) {
   if (file) {
-    const response = await addFile(file)
-    if (response && response.Hash && response.Name && response.Size) {
-      const decoded = bs58.decode(response.Hash)
+    const responses = await addFile(file)
+
+    // directory has no Name
+    const dir = responses.find((r) => r.Name === '')
+    if (dir && dir.Hash && dir.Size) {
+      const decoded = bs58.decode(dir.Hash)
       return `0x${decoded.toString('hex').slice(4)}`
     }
   }
@@ -67,15 +79,32 @@ async function processMetadata(file) {
   return null
 }
 
-const downloadFile = async (hash) => {
-  const url = `http://${IPFS_HOST}:${IPFS_PORT}/api/v0/cat?arg=${hash}`
-  const res = await fetch(url, { method: 'POST' })
+const downloadFile = async (dirHash) => {
+  const dirUrl = `http://${IPFS_HOST}:${IPFS_PORT}/api/v0/ls?arg=${dirHash}`
+  const dirRes = await fetch(dirUrl, { method: 'POST' })
+  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}): ${await dirRes.text()}`)
 
-  if (!res.ok) {
-    throw new Error(`Error fetching file from IPFS (${res.status}): ${await res.text()}`)
-  }
+  // Parse stream of dir data to get the file hash
+  const pipeline = dirRes.body.pipe(StreamValues.withParser())
+  const { fileHash, filename } = await new Promise((resolve, reject) =>
+    pipeline
+      .on('error', (err) => reject(err))
+      .on('data', (data) => {
+        if (data.value.Objects[0].Links.length > 0) {
+          resolve({ fileHash: data.value.Objects[0].Links[0].Hash, filename: data.value.Objects[0].Links[0].Name })
+        } else {
+          // no links means it's just a file (legacy), not a directory
+          resolve({ fileHash: dirHash, filename: 'metadata' })
+        }
+      })
+  )
 
-  return res.body
+  // Return file
+  const fileUrl = `http://${IPFS_HOST}:${IPFS_PORT}/api/v0/cat?arg=${fileHash}`
+  const fileRes = await fetch(fileUrl, { method: 'POST' })
+  if (!fileRes.ok) throw new Error(`Error fetching file from IPFS (${fileRes.status}): ${await fileRes.text()}`)
+
+  return { file: fileRes.body, filename }
 }
 
 async function getLastTokenId() {

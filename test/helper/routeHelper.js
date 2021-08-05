@@ -30,10 +30,28 @@ async function getAuthTokenRoute(app) {
 async function addFileRoute(file) {
   const form = new FormData()
   form.append('file', fs.createReadStream(file))
+  const body = await fetch(`http://${IPFS_HOST}:${IPFS_PORT}/api/v0/add?cid-version=0&wrap-with-directory=true`, {
+    method: 'POST',
+    body: form,
+  })
+  const text = await body.text()
+  const json = text
+    .split('\n')
+    .filter((obj) => obj.length > 0)
+    .map((obj) => JSON.parse(obj))
+
+  return json
+}
+
+// Route for old method of uploading tokens without being wrapped in a directory
+async function addFileRouteLegacy(file) {
+  const form = new FormData()
+  form.append('file', fs.createReadStream(file))
   const body = await fetch(`http://${IPFS_HOST}:${IPFS_PORT}/api/v0/add?cid-version=0`, {
     method: 'POST',
     body: form,
   })
+
   return body.json()
 }
 
@@ -115,6 +133,7 @@ module.exports = {
   getAuthTokenRoute,
   addItemRoute,
   addFileRoute,
+  addFileRouteLegacy,
   getItemRoute,
   getItemMetadataRoute,
   getLastTokenIdRoute,
