@@ -19,6 +19,8 @@ const metadata = {
     PeerId: '(Vec<u8>)',
     TokenId: 'u128',
     TokenMetadata: 'Hash',
+    // TokenMetadataKey: '(Vec<u8>)',
+    // TokenMetadataValue: 'Hash',
     Token: {
       id: 'TokenId',
       owner: 'AccountId',
@@ -26,6 +28,7 @@ const metadata = {
       created_at: 'BlockNumber',
       destroyed_at: 'Option<BlockNumber>',
       metadata: 'TokenMetadata',
+      //metadata: 'BTreeMap<TokenMetadataKey, TokenMetadataValue>',
       parents: 'Vec<TokenId>',
       children: 'Option<Vec<TokenId>>',
     },
@@ -167,10 +170,20 @@ async function getMetadata(base64Hash) {
   return downloadFile(base58Hash)
 }
 
+const validateTokenIds = async (ids) => {
+  return await ids.reduce(async (acc, inputId) => {
+    const uptoNow = await acc
+    if (!uptoNow || !inputId || !Number.isInteger(inputId)) return false
+    const { id: echoId, children } = await getItem(inputId)
+    return children === null && echoId === inputId
+  }, Promise.resolve(true))
+}
+
 module.exports = {
   runProcess,
   getItem,
   getLastTokenId,
   processMetadata,
   getMetadata,
+  validateTokenIds,
 }

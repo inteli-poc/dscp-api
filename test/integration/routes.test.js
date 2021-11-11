@@ -107,7 +107,7 @@ describe('routes', function () {
     })
   })
 
-  describe('authenticated routes', function () {
+  describe.only('authenticated routes', function () {
     let app
     let jwksMock
     let authToken

@@ -1,7 +1,14 @@
 const express = require('express')
 const formidable = require('formidable')
 
-const { getLastTokenId, getItem, runProcess, processMetadata, getMetadata } = require('../util/appUtil')
+const {
+  getLastTokenId,
+  getItem,
+  runProcess,
+  processMetadata,
+  getMetadata,
+  validateTokenIds,
+} = require('../util/appUtil')
 const logger = require('../logger')
 
 const router = express.Router()
@@ -91,9 +98,8 @@ router.post('/run-process', async (req, res) => {
     try {
       if (formError) {
         logger.error(`Error processing form ${formError}`)
-        res.status(500).json({
-          message: 'Unexpected error processing input',
-        })
+        res.status(500).json({ message: 'Unexpected error processing input' })
+        return
       }
 
       let request = null
@@ -101,46 +107,38 @@ router.post('/run-process', async (req, res) => {
         request = JSON.parse(fields.request)
       } catch (parseError) {
         logger.trace(`Invalid user input ${parseError}`)
-        res.status(400).json({
-          message: `Invalid user input ${parseError}`,
-        })
+        res.status(400).json({ message: `Invalid user input ${parseError}` })
+        return
       }
 
-      if (request && request.inputs && request.outputs && request.outputs.every((o) => files[o.metadataFile])) {
-        const inputsValid = await request.inputs.reduce(async (acc, inputId) => {
-          const uptoNow = await acc
-          if (!uptoNow || !inputId || !Number.isInteger(inputId)) return false
-          const { id: echoId, children } = await getItem(inputId)
-          return children === null && echoId === inputId
-        }, Promise.resolve(true))
+      if (!request || !request.inputs || !request.outputs) {
+        logger.trace(`Request missing input and/or outputs`)
+        res.status(400).json({ message: `Request missing input and/or outputs` })
+        return
+      }
 
-        if (!inputsValid) {
-          logger.trace(`Some inputs were invalid`)
-          res.status(400).json({
-            message: `Some inputs were invalid: ${JSON.stringify(request.inputs)}`,
-          })
-        } else {
-          const outputs = await Promise.all(
-            request.outputs.map(async (output) => ({
-              owner: output.owner,
-              metadata: await processMetadata(files[output.metadataFile]),
-            }))
-          )
+      const inputsValid = await validateTokenIds(request.inputs)
+      if (!inputsValid) {
+        logger.trace(`Some inputs were invalid`)
+        res.status(400).json({ message: `Some inputs were invalid: ${JSON.stringify(request.inputs)}` })
+        return
+      }
 
-          const result = await runProcess(request.inputs, outputs)
+      const outputs = await Promise.all(
+        request.outputs.map(async (output) => ({
+          owner: output.owner,
+          metadata: await processMetadata(files[output.metadataFile]),
+        }))
+      )
 
-          if (result) {
-            res.status(200).json(result)
-          } else {
-            logger.error(`Unexpected error running process ${result}`)
-            res.status(500).json({
-              message: `Unexpected error processing items`,
-            })
-          }
-        }
+      const result = await runProcess(request.inputs, outputs)
+
+      if (result) {
+        res.status(200).json(result)
       } else {
-        res.status(400).json({
-          message: `Invalid request`,
+        logger.error(`Unexpected error running process ${result}`)
+        res.status(500).json({
+          message: `Unexpected error processing items`,
         })
       }
     } catch (err) {
