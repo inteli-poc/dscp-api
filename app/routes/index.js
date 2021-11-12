@@ -140,18 +140,9 @@ router.post('/run-process', async (req, res) => {
       outputs = await Promise.all(
         outputs.map(async (output) => ({
           owner: output.owner,
-          metadata: await processMultipleMetadata(output.metadata, files),
+          metadata: await processMetadata(output.metadata, files),
         }))
       )
-
-      // const outputs = await Promise.all(
-      //   request.outputs.map(async (output) => ({
-      //     owner: output.owner,
-      //     metadata: await processMetadata(files[output.metadataFile]),
-      //   }))
-      // )
-
-      //&& request.outputs.every((o) => files[o.metadataFile])
 
       const result = await runProcess(request.inputs, outputs)
 

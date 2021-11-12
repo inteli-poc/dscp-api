@@ -67,15 +67,6 @@ async function addFile(file) {
   return json
 }
 
-async function processMetadata(file) {
-  if (file) {
-    const filestoreResponse = await addFile(file)
-    return generateHash(filestoreResponse)
-  }
-
-  return null
-}
-
 function generateHash(filestoreResponse) {
   // directory has no Name
   const dir = filestoreResponse.find((r) => r.Name === '')
@@ -85,7 +76,7 @@ function generateHash(filestoreResponse) {
   }
 }
 
-async function processMultipleMetadata(metadata, files) {
+async function processMetadata(metadata, files) {
   return await Promise.all(
     metadata.map(async (item) => {
       for (const [key, value] of Object.entries(item)) {
@@ -199,7 +190,6 @@ module.exports = {
   getItem,
   getLastTokenId,
   processMetadata,
-  processMultipleMetadata,
   getMetadata,
   validateTokenIds,
 }
