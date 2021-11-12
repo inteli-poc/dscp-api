@@ -127,8 +127,41 @@ describe('routes', function () {
       await jwksMock.stop()
     })
 
-    test('add and get item', async function () {
+    test('add and get item - single metadataFile (legacy)', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadataFile: './test/data/test_file_01.txt' }]
+      const addItemResult = await addItemRoute(app, authToken, [], outputs)
+      expect(addItemResult.body).to.have.length(1)
+      expect(addItemResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+    })
+
+    test.only('add and get item - metadata object - single file', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: [{ testFile: './test/data/test_file_01.txt' }] }]
+      const addItemResult = await addItemRoute(app, authToken, [], outputs)
+      expect(addItemResult.body).to.have.length(1)
+      expect(addItemResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+    })
+
+    test.only('add and get item - metadata object - multiple files', async function () {
+      const outputs = [
+        {
+          owner: USER_ALICE_TOKEN,
+          metadata: [{ testFile1: './test/data/test_file_01.txt', testFile2: './test/data/test_file_02.txt' }],
+        },
+      ]
       const addItemResult = await addItemRoute(app, authToken, [], outputs)
       expect(addItemResult.body).to.have.length(1)
       expect(addItemResult.status).to.equal(200)

@@ -69,17 +69,32 @@ async function addFile(file) {
 
 async function processMetadata(file) {
   if (file) {
-    const responses = await addFile(file)
-
-    // directory has no Name
-    const dir = responses.find((r) => r.Name === '')
-    if (dir && dir.Hash && dir.Size) {
-      const decoded = bs58.decode(dir.Hash)
-      return `0x${decoded.toString('hex').slice(4)}`
-    }
+    const filestoreResponse = await addFile(file)
+    return generateHash(filestoreResponse)
   }
 
   return null
+}
+
+function generateHash(filestoreResponse) {
+  // directory has no Name
+  const dir = filestoreResponse.find((r) => r.Name === '')
+  if (dir && dir.Hash && dir.Size) {
+    const decoded = bs58.decode(dir.Hash)
+    return `0x${decoded.toString('hex').slice(4)}`
+  }
+}
+
+async function processMultipleMetadata(metadata, files) {
+  return await Promise.all(
+    metadata.map(async (item) => {
+      for (const [key, value] of Object.entries(item)) {
+        const file = files[value]
+        const filestoreResponse = await addFile(file)
+        return { [key]: generateHash(filestoreResponse) }
+      }
+    })
+  )
 }
 
 const downloadFile = async (dirHash) => {
@@ -184,6 +199,7 @@ module.exports = {
   getItem,
   getLastTokenId,
   processMetadata,
+  processMultipleMetadata,
   getMetadata,
   validateTokenIds,
 }

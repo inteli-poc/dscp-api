@@ -69,9 +69,19 @@ async function addItemRoute(app, authToken, inputs, outputs) {
       })
     )
 
-  req = outputs.reduce((acc, { metadataFile }) => {
-    return req.attach(metadataFile, metadataFile)
-  }, req)
+  outputs.forEach((output) => {
+    if (output.metadata) {
+      output.metadata.map(async (item) => {
+        for (const fileName of Object.values(item)) {
+          req.attach(fileName, fileName)
+        }
+      })
+    }
+    // legacy
+    if (output.metadataFile) {
+      req.attach(output.metadataFile, output.metadataFile)
+    }
+  })
 
   return req
     .then((response) => {
