@@ -127,7 +127,7 @@ describe('routes', function () {
       await jwksMock.stop()
     })
 
-    test('add and get item - single metadataFile (legacy)', async function () {
+    test.only('add and get item - single metadataFile (legacy)', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadataFile: './test/data/test_file_01.txt' }]
       const addItemResult = await addItemRoute(app, authToken, [], outputs)
       expect(addItemResult.body).to.have.length(1)

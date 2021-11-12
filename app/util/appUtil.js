@@ -81,6 +81,7 @@ async function processMetadata(metadata, files) {
     metadata.map(async (item) => {
       for (const [key, value] of Object.entries(item)) {
         const file = files[value]
+        if (!file) throw new Error(`Error no attached file found for ${value}`)
         const filestoreResponse = await addFile(file)
         return { [key]: generateHash(filestoreResponse) }
       }

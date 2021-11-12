@@ -8,7 +8,6 @@ const {
   processMetadata,
   getMetadata,
   validateTokenIds,
-  processMultipleMetadata,
 } = require('../util/appUtil')
 const logger = require('../logger')
 
@@ -125,23 +124,21 @@ router.post('/run-process', async (req, res) => {
         return
       }
 
-      //catch legacy single metadataFile outputs
-      let outputs = request.outputs.map((output) => {
-        if (output.metadataFile) {
-          return {
-            owner: output.owner,
-            metadata: [{ '': output.metadataFile }],
+      const outputs = await Promise.all(
+        request.outputs.map(async (output) => {
+          //catch legacy single metadataFile
+          if (output.metadataFile) {
+            output.metadata = [{ '': output.metadataFile }]
           }
-        } else {
-          return output
-        }
-      })
-
-      outputs = await Promise.all(
-        outputs.map(async (output) => ({
-          owner: output.owner,
-          metadata: await processMetadata(output.metadata, files),
-        }))
+          try {
+            return {
+              owner: output.owner,
+              metadata: await processMetadata(output.metadata, files),
+            }
+          } catch (err) {
+            res.status(400).send(err.message)
+          }
+        })
       )
 
       const result = await runProcess(request.inputs, outputs)
