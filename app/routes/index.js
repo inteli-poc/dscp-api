@@ -55,16 +55,15 @@ router.get('/item/:id', async (req, res) => {
   }
 })
 
-// legacy, returns default metadata
-router.get('/item/:id/metadata', async (req, res) => {
-  const id = req.params && parseInt(req.params.id, 10)
+const getMetadataResponse = async (id, metadataKey, res) => {
   if (Number.isInteger(id) && id !== 0) {
     const { metadata, id: getId } = await getItem(id)
     if (getId === id) {
       try {
-        const hash = metadata[`0x${LEGACY_METADATA_KEY.toString('hex')}`]
+        const metadataKeyAsHex = `0x${Buffer.from(metadataKey).toString('hex')}`
+        const hash = metadata[metadataKeyAsHex]
         if (!hash) {
-          res.status(404).json({ message: `No legacy metadata for token with ID: ${id}` })
+          res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
           return
         }
         const { file, filename } = await getMetadata(hash)
@@ -98,6 +97,17 @@ router.get('/item/:id/metadata', async (req, res) => {
   res.status(400).json({
     message: `Invalid id: ${id}`,
   })
+}
+
+// legacy route, gets metadata with legacy key
+router.get('/item/:id/metadata', async (req, res) => {
+  const id = req.params && parseInt(req.params.id, 10)
+  getMetadataResponse(id, LEGACY_METADATA_KEY, res)
+})
+
+router.get('/item/:id/metadata/:metadataKey', async (req, res) => {
+  const id = req.params.id && parseInt(req.params.id, 10)
+  getMetadataResponse(id, req.params.metadataKey, res)
 })
 
 router.post('/run-process', async (req, res) => {

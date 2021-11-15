@@ -65,7 +65,7 @@ async function addFile(file) {
   return json
 }
 
-function generateHash(filestoreResponse) {
+function formatHash(filestoreResponse) {
   // directory has no Name
   const dir = filestoreResponse.find((r) => r.Name === '')
   if (dir && dir.Hash && dir.Size) {
@@ -77,11 +77,11 @@ function generateHash(filestoreResponse) {
 async function processMetadata(metadata, files) {
   return Object.fromEntries(
     await Promise.all(
-      Object.entries(metadata).map(async ([key, value]) => {
-        const file = files[value]
-        if (!file) throw new Error(`Error no attached file found for ${value}`)
+      Object.entries(metadata).map(async ([key, filename]) => {
+        const file = files[filename]
+        if (!file) throw new Error(`Error no attached file found for ${filename}`)
         const filestoreResponse = await addFile(file)
-        return [key, generateHash(filestoreResponse)]
+        return [key, formatHash(filestoreResponse)]
       })
     )
   )
