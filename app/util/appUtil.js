@@ -18,17 +18,15 @@ const metadata = {
     LookupSource: 'MultiAddress',
     PeerId: '(Vec<u8>)',
     TokenId: 'u128',
-    TokenMetadata: 'Hash',
-    // TokenMetadataKey: '(Vec<u8>)',
-    // TokenMetadataValue: 'Hash',
+    TokenMetadataKey: '(Vec<u8>)',
+    TokenMetadataValue: 'Hash',
     Token: {
       id: 'TokenId',
       owner: 'AccountId',
       creator: 'AccountId',
       created_at: 'BlockNumber',
       destroyed_at: 'Option<BlockNumber>',
-      metadata: 'TokenMetadata',
-      //metadata: 'BTreeMap<TokenMetadataKey, TokenMetadataValue>',
+      metadata: 'BTreeMap<TokenMetadataKey, TokenMetadataValue>',
       parents: 'Vec<TokenId>',
       children: 'Option<Vec<TokenId>>',
     },
@@ -77,15 +75,15 @@ function generateHash(filestoreResponse) {
 }
 
 async function processMetadata(metadata, files) {
-  return await Promise.all(
-    metadata.map(async (item) => {
-      for (const [key, value] of Object.entries(item)) {
+  return Object.fromEntries(
+    await Promise.all(
+      Object.entries(metadata).map(async ([key, value]) => {
         const file = files[value]
         if (!file) throw new Error(`Error no attached file found for ${value}`)
         const filestoreResponse = await addFile(file)
-        return { [key]: generateHash(filestoreResponse) }
-      }
-    })
+        return [key, generateHash(filestoreResponse)]
+      })
+    )
   )
 }
 
@@ -130,6 +128,7 @@ async function runProcess(inputs, outputs) {
     const keyring = new Keyring({ type: 'sr25519' })
     const alice = keyring.addFromUri(USER_URI)
 
+    // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
     return new Promise((resolve) => {
@@ -177,6 +176,12 @@ async function getMetadata(base64Hash) {
   return downloadFile(base58Hash)
 }
 
+const getReadableMetadataKeys = (metadata) => {
+  return Object.keys(metadata).map((key) => {
+    return Buffer.from(key.slice(2), 'hex').toString('utf8')
+  })
+}
+
 const validateTokenIds = async (ids) => {
   return await ids.reduce(async (acc, inputId) => {
     const uptoNow = await acc
@@ -193,4 +198,5 @@ module.exports = {
   processMetadata,
   getMetadata,
   validateTokenIds,
+  getReadableMetadataKeys,
 }

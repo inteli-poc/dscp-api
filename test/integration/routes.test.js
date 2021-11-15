@@ -19,7 +19,7 @@ const USER_ALICE_TOKEN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 const USER_BOB_TOKEN = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty'
 const { createToken, assertItem } = require('../helper/appHelper')
 const { processMetadata, runProcess } = require('../../app/util/appUtil')
-const { AUTH_TOKEN_URL, AUTH_ISSUER, AUTH_AUDIENCE } = require('../../app/env')
+const { AUTH_TOKEN_URL, AUTH_ISSUER, AUTH_AUDIENCE, LEGACY_METADATA_KEY } = require('../../app/env')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
@@ -127,7 +127,7 @@ describe('routes', function () {
       await jwksMock.stop()
     })
 
-    test.only('add and get item - single metadataFile (legacy)', async function () {
+    test('add and get item - single metadataFile (legacy)', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadataFile: './test/data/test_file_01.txt' }]
       const addItemResult = await addItemRoute(app, authToken, [], outputs)
       expect(addItemResult.body).to.have.length(1)
@@ -141,8 +141,8 @@ describe('routes', function () {
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
     })
 
-    test.only('add and get item - metadata object - single file', async function () {
-      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: [{ testFile: './test/data/test_file_01.txt' }] }]
+    test('add and get item - metadata object - single file', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testFile: './test/data/test_file_01.txt' } }]
       const addItemResult = await addItemRoute(app, authToken, [], outputs)
       expect(addItemResult.body).to.have.length(1)
       expect(addItemResult.status).to.equal(200)
@@ -155,11 +155,11 @@ describe('routes', function () {
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
     })
 
-    test.only('add and get item - metadata object - multiple files', async function () {
+    test('add and get item - metadata object - multiple files', async function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
-          metadata: [{ testFile1: './test/data/test_file_01.txt', testFile2: './test/data/test_file_02.txt' }],
+          metadata: { testFile1: './test/data/test_file_01.txt', testFile2: './test/data/test_file_02.txt' },
         },
       ]
       const addItemResult = await addItemRoute(app, authToken, [], outputs)
@@ -240,7 +240,7 @@ describe('routes', function () {
       expect(actualResult.body).to.have.property('message')
     })
 
-    test('run-process creating one token', async function () {
+    test.only('run-process creating one token (legacy)', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
       const lastTokenId = lastToken.body.id
 
@@ -263,11 +263,41 @@ describe('routes', function () {
         owner: USER_BOB_TOKEN,
         parents: [],
         children: null,
+        metadata: [LEGACY_METADATA_KEY],
       }
 
       assertItem(item.body, expectedResult)
       expect(itemMetadata.text.toString()).equal('This is the fourth test file...\n')
     })
+
+    // test.only('run-process creating one token', async function () {
+    //   const lastToken = await getLastTokenIdRoute(app, authToken)
+    //   const lastTokenId = lastToken.body.id
+
+    //   let expectedResult = [lastTokenId + 1]
+
+    //   const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: './test/data/test_file_01.txt' } }]
+    //   const actualResult = await addItemRoute(app, authToken, [], outputs)
+
+    //   expect(actualResult.status).to.equal(200)
+    //   expect(actualResult.body).to.deep.equal(expectedResult)
+
+    //   const item = await getItemRoute(app, authToken, { id: lastTokenId + 1 })
+    //   const itemMetadata = await getItemMetadataRoute(app, authToken, {
+    //     id: lastTokenId + 1,
+    //   })
+
+    //   expectedResult = {
+    //     id: lastTokenId + 1,
+    //     creator: USER_ALICE_TOKEN,
+    //     owner: USER_BOB_TOKEN,
+    //     parents: [],
+    //     children: null,
+    //   }
+
+    //   assertItem(item.body, expectedResult)
+    //   expect(itemMetadata.text.toString()).equal('This is the fourth test file...\n')
+    // })
 
     test('run-process destroying one token and creating one', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)

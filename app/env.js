@@ -19,6 +19,7 @@ const vars = envalid.cleanEnv(process.env, {
   AUTH_AUDIENCE: envalid.str(),
   AUTH_ISSUER: envalid.url(),
   AUTH_TOKEN_URL: envalid.url(),
+  LEGACY_METADATA_KEY: envalid.str({ default: '' }),
 })
 
 module.exports = {

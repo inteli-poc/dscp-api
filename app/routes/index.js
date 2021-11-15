@@ -8,8 +8,10 @@ const {
   processMetadata,
   getMetadata,
   validateTokenIds,
+  getReadableMetadataKeys,
 } = require('../util/appUtil')
 const logger = require('../logger')
+const { LEGACY_METADATA_KEY } = require('../env')
 
 const router = express.Router()
 
@@ -30,7 +32,8 @@ router.get('/item/:id', async (req, res) => {
     const id = req.params && parseInt(req.params.id, 10)
     if (Number.isInteger(id) && id !== 0) {
       const result = await getItem(id)
-      delete result.metadata
+
+      result.metadata = getReadableMetadataKeys(result.metadata)
 
       if (result.id === id) {
         res.status(200).json(result)
@@ -52,12 +55,18 @@ router.get('/item/:id', async (req, res) => {
   }
 })
 
+// legacy, returns default metadata
 router.get('/item/:id/metadata', async (req, res) => {
   const id = req.params && parseInt(req.params.id, 10)
   if (Number.isInteger(id) && id !== 0) {
-    const { metadata: hash, id: getId } = await getItem(id)
+    const { metadata, id: getId } = await getItem(id)
     if (getId === id) {
       try {
+        const hash = metadata[`0x${LEGACY_METADATA_KEY.toString('hex')}`]
+        if (!hash) {
+          res.status(404).json({ message: `No legacy metadata for token with ID: ${id}` })
+          return
+        }
         const { file, filename } = await getMetadata(hash)
 
         await new Promise((resolve, reject) => {
@@ -128,7 +137,7 @@ router.post('/run-process', async (req, res) => {
         request.outputs.map(async (output) => {
           //catch legacy single metadataFile
           if (output.metadataFile) {
-            output.metadata = [{ '': output.metadataFile }]
+            output.metadata = { [LEGACY_METADATA_KEY]: output.metadataFile }
           }
           try {
             return {
