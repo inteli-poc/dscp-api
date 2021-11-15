@@ -196,7 +196,7 @@ describe('routes', function () {
 
       const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-      const output = { owner: USER_ALICE_TOKEN, metadata: base64Metadata }
+      const output = { owner: USER_ALICE_TOKEN, metadata: { '': base64Metadata } }
 
       await runProcess([], [output])
 
@@ -206,13 +206,13 @@ describe('routes', function () {
       expect(res.header['content-disposition']).equal('attachment; filename="test_file_01.txt"')
     })
 
-    test('get legacy item metadata', async function () {
+    test('get item metadata (addFileRouteLegacy)', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
       const lastTokenId = lastToken.body.id
       const { Hash: base58Metadata } = await addFileRouteLegacy('./test/data/test_file_01.txt')
       const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-      const output = { owner: USER_ALICE_TOKEN, metadata: base64Metadata }
+      const output = { owner: USER_ALICE_TOKEN, metadata: { '': base64Metadata } }
 
       await runProcess([], [output])
 
@@ -240,7 +240,7 @@ describe('routes', function () {
       expect(actualResult.body).to.have.property('message')
     })
 
-    test.only('run-process creating one token (legacy)', async function () {
+    test('run-process creating one token (legacy)', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
       const lastTokenId = lastToken.body.id
 
