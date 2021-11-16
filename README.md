@@ -66,6 +66,7 @@ The following environment variables are used by `vitalam-api` and can be configu
 | AUTH_ISSUER         |    Y     |    -    | Domain of the Auth0 API e.g. `https://test.eu.auth0.com/`                                                            |
 | AUTH_TOKEN_URL      |    Y     |    -    | Auth0 API endpoint that issues an Authorisation (Bearer) access token e.g. `https://test.auth0.com/oauth/token`      |
 | LEGACY_METADATA_KEY |    N     |   ''    | Key given to token metadata posted without a key (such as when posted using the legacy `metadataFile` field)         |
+| METADATA_KEY_LENGTH |    N     |  `32`   | Fixed length of metadata keys                                                                                        |
 
 ## Running the API
 

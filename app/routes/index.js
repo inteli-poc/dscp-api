@@ -11,7 +11,7 @@ const {
   getReadableMetadataKeys,
 } = require('../util/appUtil')
 const logger = require('../logger')
-const { LEGACY_METADATA_KEY } = require('../env')
+const { LEGACY_METADATA_KEY, METADATA_KEY_LENGTH } = require('../env')
 
 const router = express.Router()
 
@@ -60,8 +60,11 @@ const getMetadataResponse = async (id, metadataKey, res) => {
     const { metadata, id: getId } = await getItem(id)
     if (getId === id) {
       try {
-        const metadataKeyAsHex = `0x${Buffer.from(metadataKey).toString('hex')}`
-        const hash = metadata[metadataKeyAsHex]
+        const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
+        const metadataKeyBuf = Buffer.from(metadataKey)
+        metadataKeyBuf.copy(buffer, 0)
+        const metadataKeyAsPaddedHex = `0x${buffer.toString('hex')}`
+        const hash = metadata[metadataKeyAsPaddedHex]
         if (!hash) {
           res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
           return

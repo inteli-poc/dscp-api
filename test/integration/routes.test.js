@@ -21,7 +21,13 @@ const USER_ALICE_TOKEN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 const USER_BOB_TOKEN = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty'
 const { createToken, assertItem } = require('../helper/appHelper')
 const { processMetadata, runProcess } = require('../../app/util/appUtil')
-const { AUTH_TOKEN_URL, AUTH_ISSUER, AUTH_AUDIENCE, LEGACY_METADATA_KEY } = require('../../app/env')
+const {
+  AUTH_TOKEN_URL,
+  AUTH_ISSUER,
+  AUTH_AUDIENCE,
+  LEGACY_METADATA_KEY,
+  METADATA_KEY_LENGTH,
+} = require('../../app/env')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
@@ -109,7 +115,7 @@ describe('routes', function () {
     })
   })
 
-  describe.only('authenticated routes', function () {
+  describe('authenticated routes', function () {
     let app
     let jwksMock
     let authToken
@@ -180,13 +186,17 @@ describe('routes', function () {
     })
 
     test('add item - missing file attachments', async function () {
-      const outputs = [
-        {
-          owner: USER_ALICE_TOKEN,
-          metadata: { testFile1: './test/data/test_file_01.txt' },
-        },
-      ]
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testFile1: './test/data/test_file_01.txt' } }]
       const runProcessResult = await postRunProcessNoFileAttach(app, authToken, [], outputs)
+
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
+
+    test('add item - metadataKey too long', async function () {
+      const metadataKey = 'a'.repeat(METADATA_KEY_LENGTH + 1)
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: './test/data/test_file_01.txt' } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
 
       expect(runProcessResult.body).to.have.property('message')
       expect(runProcessResult.status).to.equal(400)

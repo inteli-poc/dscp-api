@@ -7,7 +7,7 @@ const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
 
-const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT } = require('../env')
+const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT, METADATA_KEY_LENGTH } = require('../env')
 const logger = require('../logger')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
@@ -18,7 +18,7 @@ const metadata = {
     LookupSource: 'MultiAddress',
     PeerId: '(Vec<u8>)',
     TokenId: 'u128',
-    TokenMetadataKey: '(Vec<u8>)',
+    TokenMetadataKey: '[u8; 32]',
     TokenMetadataValue: 'Hash',
     Token: {
       id: 'TokenId',
@@ -78,6 +78,9 @@ async function processMetadata(metadata, files) {
   return Object.fromEntries(
     await Promise.all(
       Object.entries(metadata).map(async ([key, filename]) => {
+        if (key.length > METADATA_KEY_LENGTH)
+          throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
+
         const file = files[filename]
         if (!file) throw new Error(`Error no attached file found for ${filename}`)
         const filestoreResponse = await addFile(file)
@@ -178,7 +181,7 @@ async function getMetadata(base64Hash) {
 
 const getReadableMetadataKeys = (metadata) => {
   return Object.keys(metadata).map((key) => {
-    return Buffer.from(key.slice(2), 'hex').toString('utf8')
+    return Buffer.from(key.slice(2), 'hex').toString('utf8').replace(/\0/g, '') // keys are fixed length so remove padding
   })
 }
 
