@@ -52,19 +52,20 @@ npm run test:integration
 
 The following environment variables are used by `vitalam-api` and can be configured. Entries marked as `required` are needed when running `vitalam-api` in production mode.
 
-| variable       | required | default | description                                                                                                          |
-| :------------- | :------: | :-----: | :------------------------------------------------------------------------------------------------------------------- |
-| PORT           |    N     | `3001`  | The port for the API to listen on                                                                                    |
-| API_HOST       |    Y     |    -    | The hostname of the `vitalam-node` the API should connect to                                                         |
-| API_PORT       |    N     | `9944`  | The port of the `vitalam-node` the API should connect to                                                             |
-| LOG_LEVEL      |    N     | `info`  | Logging level. Valid values are [`trace`, `debug`, `info`, `warn`, `error`, `fatal`]                                 |
-| USER_URI       |    Y     |    -    | The Substrate `URI` representing the private key to use when making `vitalam-node` transactions                      |
-| IPFS_HOST      |    Y     |    -    | Hostname of the `IPFS` node to use for metadata storage                                                              |
-| IPFS_PORT      |    N     | `15001` | Port of the `IPFS` node to use for metadata storage                                                                  |
-| AUTH_JWKS_URI  |    Y     |    -    | JSON Web Key Set containing public keys used by the Auth0 API e.g. `https://test.eu.auth0.com/.well-known/jwks.json` |
-| AUTH_AUDIENCE  |    Y     |    -    | Identifier of the Auth0 API                                                                                          |
-| AUTH_ISSUER    |    Y     |    -    | Domain of the Auth0 API e.g. `https://test.eu.auth0.com/`                                                            |
-| AUTH_TOKEN_URL |    Y     |    -    | Auth0 API endpoint that issues an Authorisation (Bearer) access token e.g. `https://test.auth0.com/oauth/token`      |
+| variable            | required | default | description                                                                                                          |
+| :------------------ | :------: | :-----: | :------------------------------------------------------------------------------------------------------------------- |
+| PORT                |    N     | `3001`  | The port for the API to listen on                                                                                    |
+| API_HOST            |    Y     |    -    | The hostname of the `vitalam-node` the API should connect to                                                         |
+| API_PORT            |    N     | `9944`  | The port of the `vitalam-node` the API should connect to                                                             |
+| LOG_LEVEL           |    N     | `info`  | Logging level. Valid values are [`trace`, `debug`, `info`, `warn`, `error`, `fatal`]                                 |
+| USER_URI            |    Y     |    -    | The Substrate `URI` representing the private key to use when making `vitalam-node` transactions                      |
+| IPFS_HOST           |    Y     |    -    | Hostname of the `IPFS` node to use for metadata storage                                                              |
+| IPFS_PORT           |    N     | `15001` | Port of the `IPFS` node to use for metadata storage                                                                  |
+| AUTH_JWKS_URI       |    Y     |    -    | JSON Web Key Set containing public keys used by the Auth0 API e.g. `https://test.eu.auth0.com/.well-known/jwks.json` |
+| AUTH_AUDIENCE       |    Y     |    -    | Identifier of the Auth0 API                                                                                          |
+| AUTH_ISSUER         |    Y     |    -    | Domain of the Auth0 API e.g. `https://test.eu.auth0.com/`                                                            |
+| AUTH_TOKEN_URL      |    Y     |    -    | Auth0 API endpoint that issues an Authorisation (Bearer) access token e.g. `https://test.auth0.com/oauth/token`      |
+| LEGACY_METADATA_KEY |    N     |   ''    | Key given to token metadata posted without a key (such as when posted using the legacy `metadataFile` field)         |
 
 ## Running the API
 
@@ -104,9 +105,13 @@ This will return a JSON response (`Content-Type` `application/json`) of the form
 The rest of the endpoints in `vitalam-api` require authentication in the form of a header `'Authorization: Bearer YOUR_ACCESS_TOKEN'`:
 
 1. [GET /item/:id](#get-/item/:id)
-2. [GET /item/:id/metadata](#get-/item/:id/metadata)
+2. [GET /item/:id/metadata/:metadataKey](#get-/item/:id/metadata/:metadataKey)
 3. [POST /run-process](#POST-/run-process)
 4. [GET /last-token](#get-/last-token)
+
+The following endpoints are maintained for backwards compatibility:
+
+1. [GET /item/:id/metadata](#get-/item/:id/metadata)
 
 ### GET /item/:id
 
@@ -121,12 +126,13 @@ Gets the item identified by `id`. Item `id`s are returned by [POST /run-process]
     "destroyed_at": 321 || null, // Nullable<Number>
     "parents": [40, 41], // Array<Number>
     "children": [43, 44] || null // Nullable<Array<Number>>
+    "metadata": ["metadataKey1", ..."metadataKeyN"] // Array<String>
 }
 ```
 
-### GET /item/:id/metadata
+### GET /item/:id/metadata/:metadataKey
 
-Gets the metadata entry associated with the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). This will return a file of the metadata entry the item was created with. The file will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
+Gets the metadata file matching the `metadataKey` for the the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). The file will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
 
 ### POST /run-process
 
@@ -137,14 +143,14 @@ This endpoint governs the creation and destruction of all tokens in the system. 
   "inputs": [40, 41] // Array<Number>,
   "outputs": [{ // Array<Output>
     "owner": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-    "metadataFile": "some_file.txt" // String
+    "metadata": {"metadataKey1": "some_file.txt", ..."metadataKeyN": "some_other_file.txt"}
   }]
 }
 ```
 
 The `inputs` field is an array of token `id`s that identifies the tokens to be consumed by running this process. To create tokens without destroying any inputs simply pass an empty array.
 
-The `outputs` field is an array of objects that describe tokens to be created by running this process. To destroy tokens without creating any new ones simply pass an empty array. Each output must set the address of the `owner` of the new token. Each output must also reference a `metadataFile` which should be associated with a new token.
+The `outputs` field is an array of objects that describe tokens to be created by running this process. To destroy tokens without creating any new ones simply pass an empty array. Each output must set the address of the `owner` of the new token. Each output must also reference a `metadata` object containing a (key, value) pair for each metadata file associated with a new token. The key identifies the metadata file, and the value is the filename. Each filename must match a corresponding file attached to the request.
 
 The response of this API will be JSON (`Content-Type` `application/json`) of the following form
 
@@ -163,3 +169,9 @@ Gets the `id` of the last item created by [POST /run-process](#post-/run-process
     "id": 5, // Number
 }
 ```
+
+### GET /item/:id/metadata
+
+Maintained for backwards compatibility. New tokens should use [GET /item/:id/metadata/:metadataKey](#get-/item/:id/metadata/:metadataKey).
+
+Gets the metadata file matching the `LEGACY_METADATA_KEY` env for the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). The file will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
