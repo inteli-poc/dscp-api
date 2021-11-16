@@ -155,7 +155,7 @@ router.post('/run-process', async (req, res) => {
               metadata: await processMetadata(output.metadata, files),
             }
           } catch (err) {
-            res.status(400).send(err.message)
+            res.status(400).json({ message: err.message })
           }
         })
       )
