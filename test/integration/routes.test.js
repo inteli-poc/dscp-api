@@ -165,6 +165,40 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testFile'])
     })
 
+    test.only('add and get item - metadata file + literals', async function () {
+      const outputs = [
+        {
+          owner: USER_ALICE_TOKEN,
+          metadata: { testFile: './test/data/test_file_01.txt', testLiteral: 'notAFile' },
+        },
+      ]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+
+      expect(runProcessResult.body).to.have.length(1)
+      expect(runProcessResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+      expect(getItemResult.body.metadata).to.deep.equal(['testFile', 'testLiteral'])
+
+      const testFile = await getItemMetadataRoute(app, authToken, {
+        id: lastToken.body.id,
+        metadataKey: 'testFile',
+      })
+      expect(testFile.text.toString()).equal('This is the first test file...\n')
+
+      const testLiteral = await getItemMetadataRoute(app, authToken, {
+        id: lastToken.body.id,
+        metadataKey: 'testLiteral',
+      })
+
+      expect(testLiteral.body).equal('notAFile')
+    })
+
     test('add and get item - multiple metadata files', async function () {
       const outputs = [
         {

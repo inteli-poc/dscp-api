@@ -6,7 +6,7 @@ const {
   getItem,
   runProcess,
   processMetadata,
-  getMetadata,
+  getFile,
   validateTokenIds,
   getReadableMetadataKeys,
 } = require('../util/appUtil')
@@ -64,12 +64,18 @@ const getMetadataResponse = async (id, metadataKey, res) => {
         const metadataKeyBuf = Buffer.from(metadataKey)
         metadataKeyBuf.copy(buffer, 0)
         const metadataKeyAsPaddedHex = `0x${buffer.toString('hex')}`
-        const hash = metadata[metadataKeyAsPaddedHex]
-        if (!hash) {
+        const metadataValue = metadata[metadataKeyAsPaddedHex]
+        if (!metadataValue) {
           res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
           return
         }
-        const { file, filename } = await getMetadata(hash)
+
+        if (!metadataKey.toLowerCase().includes('file')) {
+          const readable = Buffer.from(metadataValue.slice(2), 'hex').toString('utf8').replace(/\0/g, '')
+          res.status(200).json(readable)
+        }
+
+        const { file, filename } = await getFile(metadataValue)
 
         await new Promise((resolve, reject) => {
           res.status(200)

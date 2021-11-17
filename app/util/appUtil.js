@@ -77,14 +77,21 @@ function formatHash(filestoreResponse) {
 async function processMetadata(metadata, files) {
   return Object.fromEntries(
     await Promise.all(
-      Object.entries(metadata).map(async ([key, filename]) => {
+      Object.entries(metadata).map(async ([key, value]) => {
         if (key.length > METADATA_KEY_LENGTH)
           throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
 
-        const file = files[filename]
-        if (!file) throw new Error(`Error no attached file found for ${filename}`)
-        const filestoreResponse = await addFile(file)
-        return [key, formatHash(filestoreResponse)]
+        if (key.toLowerCase().includes('file')) {
+          const file = files[value]
+          if (!file) throw new Error(`Error no attached file found for ${value}`)
+          const filestoreResponse = await addFile(file)
+          return [key, formatHash(filestoreResponse)]
+        } else {
+          if (value.length > METADATA_KEY_LENGTH)
+            throw new Error(`Metadata value: ${value} is too long. Maximum length is ${METADATA_KEY_LENGTH}`)
+
+          return [key, value]
+        }
       })
     )
   )
@@ -173,7 +180,7 @@ async function getItem(tokenId) {
   return response
 }
 
-async function getMetadata(base64Hash) {
+async function getFile(base64Hash) {
   // strip 0x and parse to base58
   const base58Hash = bs58.encode(Buffer.from(`1220${base64Hash.slice(2)}`, 'hex'))
   return downloadFile(base58Hash)
@@ -199,7 +206,7 @@ module.exports = {
   getItem,
   getLastTokenId,
   processMetadata,
-  getMetadata,
+  getFile,
   validateTokenIds,
   getReadableMetadataKeys,
 }
