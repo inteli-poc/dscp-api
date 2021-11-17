@@ -179,5 +179,5 @@ module.exports = {
   getLastTokenId,
   processMetadata,
   getMetadata,
-  getMembers
+  getMembers,
 }
