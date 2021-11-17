@@ -1,7 +1,7 @@
 const express = require('express')
 const formidable = require('formidable')
 
-const { getLastTokenId, getItem, runProcess, processMetadata, getMetadata } = require('../util/appUtil')
+const { getLastTokenId, getItem, runProcess, processMetadata, getMetadata, getMembers } = require('../util/appUtil')
 const logger = require('../logger')
 
 const router = express.Router()
@@ -82,6 +82,18 @@ router.get('/item/:id/metadata', async (req, res) => {
   res.status(400).json({
     message: `Invalid id: ${id}`,
   })
+})
+
+router.get('/members', async (req, res) => {
+  try {
+    const members = await getMembers()
+    res.status(200).json({ members: members })
+  } catch (err) {
+    logger.error(`Error getting members. Error was ${err.message || JSON.stringify(err)}`)
+    if (!res.headersSent) {
+      res.status(500).send(`Error getting members`)
+    }
+  }
 })
 
 router.post('/run-process', async (req, res) => {

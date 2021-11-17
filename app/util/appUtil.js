@@ -114,6 +114,12 @@ async function getLastTokenId() {
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
+async function getMembers() {
+  await api.isReady
+
+  return api.query.membership.members()
+}
+
 async function runProcess(inputs, outputs) {
   if (inputs && outputs) {
     await api.isReady
@@ -173,4 +179,5 @@ module.exports = {
   getLastTokenId,
   processMetadata,
   getMetadata,
+  getMembers
 }
