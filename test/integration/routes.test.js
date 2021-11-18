@@ -151,7 +151,9 @@ describe('routes', function () {
     })
 
     test('add and get item - single metadata file', async function () {
-      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testFile: './test/data/test_file_01.txt' } }]
+      const outputs = [
+        { owner: USER_ALICE_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_01.txt' } } },
+      ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
@@ -165,11 +167,26 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testFile'])
     })
 
-    test.only('add and get item - metadata file + literals', async function () {
+    test('add and get item - single literal', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testLiteral: 'notAFile' } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.length(1)
+      expect(runProcessResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+      expect(getItemResult.body.metadata).to.deep.equal(['testLiteral'])
+    })
+
+    test('add and get item - metadata file + literal', async function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
-          metadata: { testFile: './test/data/test_file_01.txt', testLiteral: 'notAFile' },
+          metadata: { testFile: { filePath: './test/data/test_file_01.txt' }, testLiteral: 'notAFile' },
         },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
@@ -203,7 +220,10 @@ describe('routes', function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
-          metadata: { testFile1: './test/data/test_file_01.txt', testFile2: './test/data/test_file_02.txt' },
+          metadata: {
+            testFile1: { filePath: './test/data/test_file_01.txt' },
+            testFile2: { filePath: './test/data/test_file_02.txt' },
+          },
         },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
@@ -219,8 +239,30 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testFile1', 'testFile2'])
     })
 
+    test('add and get item - multiple literals', async function () {
+      const outputs = [
+        {
+          owner: USER_ALICE_TOKEN,
+          metadata: { testLiteral1: 'test', testLiteral2: 'test' },
+        },
+      ]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.length(1)
+      expect(runProcessResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+      expect(getItemResult.body.metadata).to.deep.equal(['testLiteral1', 'testLiteral2'])
+    })
+
     test('add item - missing file attachments', async function () {
-      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testFile1: './test/data/test_file_01.txt' } }]
+      const outputs = [
+        { owner: USER_ALICE_TOKEN, metadata: { testFile1: { filePath: './test/data/test_file_01.txt' } } },
+      ]
       const runProcessResult = await postRunProcessNoFileAttach(app, authToken, [], outputs)
 
       expect(runProcessResult.body).to.have.property('message')
@@ -229,7 +271,7 @@ describe('routes', function () {
 
     test('add item - metadataKey too long', async function () {
       const metadataKey = 'a'.repeat(METADATA_KEY_LENGTH + 1)
-      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: './test/data/test_file_01.txt' } }]
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: 'test' } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
 
       expect(runProcessResult.body).to.have.property('message')
@@ -350,7 +392,7 @@ describe('routes', function () {
 
       let expectedResult = [lastTokenId + 1]
 
-      const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: './test/data/test_file_01.txt' } }]
+      const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_01.txt' } } }]
       const actualResult = await postRunProcess(app, authToken, [], outputs)
 
       expect(actualResult.status).to.equal(200)
@@ -388,12 +430,12 @@ describe('routes', function () {
         [
           {
             owner: USER_ALICE_TOKEN,
-            metadata: { testFile: './test/data/test_file_01.txt' },
+            metadata: { testFile: { filePath: './test/data/test_file_01.txt' } },
           },
         ]
       )
 
-      const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: './test/data/test_file_04.txt' } }]
+      const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_04.txt' } } }]
       const actualResult = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
 
       expect(actualResult.status).to.equal(200)

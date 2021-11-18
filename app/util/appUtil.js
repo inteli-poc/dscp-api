@@ -81,9 +81,13 @@ async function processMetadata(metadata, files) {
         if (key.length > METADATA_KEY_LENGTH)
           throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
 
-        if (key.toLowerCase().includes('file')) {
-          const file = files[value]
-          if (!file) throw new Error(`Error no attached file found for ${value}`)
+        if (typeof value === 'object') {
+          const filePath = value.filePath
+          if (!filePath) throw new Error(`Error no filePath field in ${key}: ${JSON.stringify(value)}`)
+
+          const file = files[filePath]
+          if (!file) throw new Error(`Error no attached file found for ${filePath}`)
+
           const filestoreResponse = await addFile(file)
           return [key, formatHash(filestoreResponse)]
         } else {
@@ -100,7 +104,7 @@ async function processMetadata(metadata, files) {
 const downloadFile = async (dirHash) => {
   const dirUrl = `http://${IPFS_HOST}:${IPFS_PORT}/api/v0/ls?arg=${dirHash}`
   const dirRes = await fetch(dirUrl, { method: 'POST' })
-  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}): ${await dirRes.text()}`)
+  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}):`)
 
   // Parse stream of dir data to get the file hash
   const pipeline = dirRes.body.pipe(StreamValues.withParser())

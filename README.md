@@ -133,7 +133,7 @@ Gets the item identified by `id`. Item `id`s are returned by [POST /run-process]
 
 ### GET /item/:id/metadata/:metadataKey
 
-Gets the metadata file matching the `metadataKey` for the the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). The file will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
+Gets the metadata value matching the `metadataKey` for the the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). If the value is a string, it will be returned with a `Content-Type` of `application/json`. If the value is a file, it will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
 
 ### POST /run-process
 
@@ -144,14 +144,14 @@ This endpoint governs the creation and destruction of all tokens in the system. 
   "inputs": [40, 41] // Array<Number>,
   "outputs": [{ // Array<Output>
     "owner": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-    "metadata": {"metadataKey1": "some_file.txt", ..."metadataKeyN": "some_other_file.txt"}
+    "metadata": { "file": { "filePath": "some_file.txt"}, "literal": "literal_value", ..."metadataKeyN": "some_other_value"}
   }]
 }
 ```
 
 The `inputs` field is an array of token `id`s that identifies the tokens to be consumed by running this process. To create tokens without destroying any inputs simply pass an empty array.
 
-The `outputs` field is an array of objects that describe tokens to be created by running this process. To destroy tokens without creating any new ones simply pass an empty array. Each output must set the address of the `owner` of the new token. Each output must also reference a `metadata` object containing a (key, value) pair for each metadata file associated with a new token. The key identifies the metadata file, and the value is the filename. Each filename must match a corresponding file attached to the request.
+The `outputs` field is an array of objects that describe tokens to be created by running this process. To destroy tokens without creating any new ones simply pass an empty array. Each output must set the address of the `owner` of the new token. Each output must also reference a `metadata` object containing a (key, value) pair for each metadata item associated with the new token. Metadata can be either literal strings or files. The key identifies the metadata item, and the value is either a string value, or for files, an object containing a `filePath`. Each `filePath` must match a corresponding file attached to the request.
 
 The response of this API will be JSON (`Content-Type` `application/json`) of the following form
 

@@ -72,8 +72,8 @@ async function postRunProcess(app, authToken, inputs, outputs) {
   outputs.forEach((output) => {
     if (output.metadata) {
       for (const value of Object.values(output.metadata)) {
-        if (fs.existsSync(value)) {
-          req.attach(value, value)
+        if (value.filePath) {
+          req.attach(value.filePath, value.filePath)
         }
       }
     }

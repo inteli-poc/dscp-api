@@ -63,34 +63,42 @@ const getMetadataResponse = async (id, metadataKey, res) => {
         const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
         const metadataKeyBuf = Buffer.from(metadataKey)
         metadataKeyBuf.copy(buffer, 0)
-        const metadataKeyAsPaddedHex = `0x${buffer.toString('hex')}`
-        const metadataValue = metadata[metadataKeyAsPaddedHex]
+        const metadataValue = metadata[`0x${buffer.toString('hex')}`]
         if (!metadataValue) {
           res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
           return
         }
 
-        if (!metadataKey.toLowerCase().includes('file')) {
-          const readable = Buffer.from(metadataValue.slice(2), 'hex').toString('utf8').replace(/\0/g, '')
-          res.status(200).json(readable)
+        let utf8decoder = new TextDecoder('utf-8', { fatal: true })
+        const valueBuffer = Buffer.from(metadataValue.slice(2), 'hex')
+
+        let decodedMetadataValue
+        try {
+          // try to decode to literal
+          decodedMetadataValue = utf8decoder.decode(valueBuffer)
+        } catch (err) {
+          if (err.code === 'ERR_ENCODING_INVALID_ENCODED_DATA') {
+            // must be a file
+            const { file, filename } = await getFile(metadataValue)
+
+            await new Promise((resolve, reject) => {
+              res.status(200)
+              res.set({
+                immutable: true,
+                maxAge: 365 * 24 * 60 * 60 * 1000,
+                'Content-Disposition': `attachment; filename="${filename}"`,
+              })
+              file.pipe(res)
+              file.on('error', (err) => reject(err))
+              res.on('finish', () => resolve())
+            })
+            return
+          }
         }
-
-        const { file, filename } = await getFile(metadataValue)
-
-        await new Promise((resolve, reject) => {
-          res.status(200)
-          res.set({
-            immutable: true,
-            maxAge: 365 * 24 * 60 * 60 * 1000,
-            'Content-Disposition': `attachment; filename="${filename}"`,
-          })
-          file.pipe(res)
-          file.on('error', (err) => reject(err))
-          res.on('finish', () => resolve())
-        })
-        return
+        const readable = decodedMetadataValue.replace(/\0/g, '')
+        res.status(200).json(readable)
       } catch (err) {
-        logger.warn(`Error sending metadata file. Error was ${err}`)
+        logger.warn(`Error fetching metadata file. Error was ${err}`)
         if (!res.headersSent) {
           res.status(500).send(`Error fetching metadata file`)
           return
@@ -156,7 +164,7 @@ router.post('/run-process', async (req, res) => {
         request.outputs.map(async (output) => {
           //catch legacy single metadataFile
           if (output.metadataFile) {
-            output.metadata = { [LEGACY_METADATA_KEY]: output.metadataFile }
+            output.metadata = { [LEGACY_METADATA_KEY]: { filePath: output.metadataFile } }
           }
           try {
             return {
@@ -168,7 +176,6 @@ router.post('/run-process', async (req, res) => {
           }
         })
       )
-
       const result = await runProcess(request.inputs, outputs)
 
       if (result) {
