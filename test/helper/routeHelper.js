@@ -4,7 +4,6 @@ const request = require('supertest')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { IPFS_HOST, IPFS_PORT } = require('../../app/env')
-const { membershipReducer } = require('../../app/util/appUtil')
 
 async function healthCheck(app) {
   return request(app)
