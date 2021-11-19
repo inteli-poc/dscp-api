@@ -189,5 +189,4 @@ module.exports = {
   processMetadata,
   getMetadata,
   getMembers,
-  membershipReducer,
 }
