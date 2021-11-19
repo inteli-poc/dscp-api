@@ -55,7 +55,7 @@ async function addFileRouteLegacy(file) {
   return body.json()
 }
 
-async function addItemRoute(app, authToken, inputs, outputs) {
+async function postRunProcess(app, authToken, inputs, outputs) {
   let req = request(app)
     .post('/run-process')
     .set('Accept', 'application/json')
@@ -69,9 +69,41 @@ async function addItemRoute(app, authToken, inputs, outputs) {
       })
     )
 
-  req = outputs.reduce((acc, { metadataFile }) => {
-    return req.attach(metadataFile, metadataFile)
-  }, req)
+  outputs.forEach((output) => {
+    if (output.metadata) {
+      for (const fileName of Object.values(output.metadata)) {
+        req.attach(fileName, fileName)
+      }
+    }
+    // legacy
+    if (output.metadataFile) {
+      req.attach(output.metadataFile, output.metadataFile)
+    }
+  })
+
+  return req
+    .then((response) => {
+      return response
+    })
+    .catch((err) => {
+      console.error(`addItemErr ${err}`)
+      return err
+    })
+}
+
+async function postRunProcessNoFileAttach(app, authToken, inputs, outputs) {
+  let req = request(app)
+    .post('/run-process')
+    .set('Accept', 'application/json')
+    .set('Content-Type', 'application/json')
+    .set('Authorization', `Bearer ${authToken}`)
+    .field(
+      'request',
+      JSON.stringify({
+        inputs,
+        outputs,
+      })
+    )
 
   return req
     .then((response) => {
@@ -98,7 +130,22 @@ async function getItemRoute(app, authToken, { id }) {
     })
 }
 
-async function getItemMetadataRoute(app, authToken, { id }) {
+async function getItemMetadataRoute(app, authToken, { id, metadataKey }) {
+  return request(app)
+    .get(`/item/${id}/metadata/${metadataKey}`)
+    .set('Accept', 'application/octet-stream')
+    .set('Content-Type', 'application/octet-stream')
+    .set('Authorization', `Bearer ${authToken}`)
+    .then((response) => {
+      return response
+    })
+    .catch((err) => {
+      console.error(`getItemErr ${err}`)
+      return err
+    })
+}
+
+async function getItemMetadataRouteLegacy(app, authToken, { id }) {
   return request(app)
     .get(`/item/${id}/metadata`)
     .set('Accept', 'application/octet-stream')
@@ -131,10 +178,12 @@ async function getLastTokenIdRoute(app, authToken) {
 module.exports = {
   healthCheck,
   getAuthTokenRoute,
-  addItemRoute,
+  postRunProcess,
+  postRunProcessNoFileAttach,
   addFileRoute,
   addFileRouteLegacy,
   getItemRoute,
   getItemMetadataRoute,
+  getItemMetadataRouteLegacy,
   getLastTokenIdRoute,
 }

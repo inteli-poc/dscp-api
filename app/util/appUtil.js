@@ -7,7 +7,7 @@ const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
 
-const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT } = require('../env')
+const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT, METADATA_KEY_LENGTH } = require('../env')
 const logger = require('../logger')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
@@ -18,14 +18,15 @@ const metadata = {
     LookupSource: 'MultiAddress',
     PeerId: '(Vec<u8>)',
     TokenId: 'u128',
-    TokenMetadata: 'Hash',
+    TokenMetadataKey: `[u8; ${METADATA_KEY_LENGTH}]`,
+    TokenMetadataValue: 'Hash',
     Token: {
       id: 'TokenId',
       owner: 'AccountId',
       creator: 'AccountId',
       created_at: 'BlockNumber',
       destroyed_at: 'Option<BlockNumber>',
-      metadata: 'TokenMetadata',
+      metadata: 'BTreeMap<TokenMetadataKey, TokenMetadataValue>',
       parents: 'Vec<TokenId>',
       children: 'Option<Vec<TokenId>>',
     },
@@ -64,19 +65,29 @@ async function addFile(file) {
   return json
 }
 
-async function processMetadata(file) {
-  if (file) {
-    const responses = await addFile(file)
-
-    // directory has no Name
-    const dir = responses.find((r) => r.Name === '')
-    if (dir && dir.Hash && dir.Size) {
-      const decoded = bs58.decode(dir.Hash)
-      return `0x${decoded.toString('hex').slice(4)}`
-    }
+function formatHash(filestoreResponse) {
+  // directory has no Name
+  const dir = filestoreResponse.find((r) => r.Name === '')
+  if (dir && dir.Hash && dir.Size) {
+    const decoded = bs58.decode(dir.Hash)
+    return `0x${decoded.toString('hex').slice(4)}`
   }
+}
 
-  return null
+async function processMetadata(metadata, files) {
+  return Object.fromEntries(
+    await Promise.all(
+      Object.entries(metadata).map(async ([key, filename]) => {
+        if (key.length > METADATA_KEY_LENGTH)
+          throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
+
+        const file = files[filename]
+        if (!file) throw new Error(`Error no attached file found for ${filename}`)
+        const filestoreResponse = await addFile(file)
+        return [key, formatHash(filestoreResponse)]
+      })
+    )
+  )
 }
 
 const downloadFile = async (dirHash) => {
@@ -120,6 +131,7 @@ async function runProcess(inputs, outputs) {
     const keyring = new Keyring({ type: 'sr25519' })
     const alice = keyring.addFromUri(USER_URI)
 
+    // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
     return new Promise((resolve) => {
@@ -167,10 +179,27 @@ async function getMetadata(base64Hash) {
   return downloadFile(base58Hash)
 }
 
+const getReadableMetadataKeys = (metadata) => {
+  return Object.keys(metadata).map((key) => {
+    return Buffer.from(key.slice(2), 'hex').toString('utf8').replace(/\0/g, '') // keys are fixed length so remove padding
+  })
+}
+
+const validateTokenIds = async (ids) => {
+  return await ids.reduce(async (acc, inputId) => {
+    const uptoNow = await acc
+    if (!uptoNow || !inputId || !Number.isInteger(inputId)) return false
+    const { id: echoId, children } = await getItem(inputId)
+    return children === null && echoId === inputId
+  }, Promise.resolve(true))
+}
+
 module.exports = {
   runProcess,
   getItem,
   getLastTokenId,
   processMetadata,
   getMetadata,
+  validateTokenIds,
+  getReadableMetadataKeys,
 }
