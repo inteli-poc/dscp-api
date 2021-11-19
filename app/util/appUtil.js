@@ -114,10 +114,19 @@ async function getLastTokenId() {
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
+function membershipReducer(values) {
+  return values.reduce((acc, item) => {
+    acc.push({ address: item })
+    return acc
+  }, [])
+}
+
 async function getMembers() {
   await api.isReady
 
-  return api.query.membership.members()
+  const result = await api.query.membership.members()
+
+  return membershipReducer(result)
 }
 
 async function runProcess(inputs, outputs) {
@@ -180,4 +189,5 @@ module.exports = {
   processMetadata,
   getMetadata,
   getMembers,
+  membershipReducer,
 }

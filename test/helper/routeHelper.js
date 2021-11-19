@@ -4,6 +4,7 @@ const request = require('supertest')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { IPFS_HOST, IPFS_PORT } = require('../../app/env')
+const { membershipReducer } = require('../../app/util/appUtil')
 
 async function healthCheck(app) {
   return request(app)
@@ -128,6 +129,21 @@ async function getLastTokenIdRoute(app, authToken) {
     })
 }
 
+async function getMembersRoute(app, authToken) {
+  return request(app)
+    .get('/members')
+    .set('Accept', 'application/json')
+    .set('Content-Type', 'application/json')
+    .set('Authorization', `Bearer ${authToken}`)
+    .then((response) => {
+      return response
+    })
+    .catch((err) => {
+      console.error(`getMembersErr ${err}`)
+      return err
+    })
+}
+
 module.exports = {
   healthCheck,
   getAuthTokenRoute,
@@ -137,4 +153,5 @@ module.exports = {
   getItemRoute,
   getItemMetadataRoute,
   getLastTokenIdRoute,
+  getMembersRoute,
 }
