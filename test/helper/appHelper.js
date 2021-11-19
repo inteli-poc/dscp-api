@@ -13,6 +13,7 @@ function assertItem(actualResult, expectedResult) {
   } else {
     expect(actualResult.destroyed_at).to.not.equal(null)
   }
+  expect(actualResult.metadata).to.deep.equal(expectedResult.metadata)
 }
 
 module.exports = {
