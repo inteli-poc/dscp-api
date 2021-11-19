@@ -150,7 +150,7 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal([LEGACY_METADATA_KEY])
     })
 
-    test('add and get item - single metadata file', async function () {
+    test.only('add and get item - single metadata file', async function () {
       const outputs = [
         { owner: USER_ALICE_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_01.txt' } } },
       ]
@@ -214,6 +214,7 @@ describe('routes', function () {
       })
 
       expect(testLiteral.body).equal('notAFile')
+      console.log(testLiteral.headers)
     })
 
     test('add and get item - multiple metadata files', async function () {

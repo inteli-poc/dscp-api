@@ -19,7 +19,7 @@ const metadata = {
     PeerId: '(Vec<u8>)',
     TokenId: 'u128',
     TokenMetadataKey: '[u8; 32]',
-    TokenMetadataValue: 'Hash',
+    TokenMetadataValue: 'MetadataValue',
     Token: {
       id: 'TokenId',
       owner: 'AccountId',
@@ -30,6 +30,15 @@ const metadata = {
       parents: 'Vec<TokenId>',
       children: 'Option<Vec<TokenId>>',
     },
+    MetadataValue: {
+      _enum: {
+        File: 'File',
+        Literal: 'Literal',
+        None: null,
+      },
+    },
+    File: 'Hash',
+    Literal: '[u8; 32]',
   },
 }
 
@@ -89,7 +98,8 @@ async function processMetadata(metadata, files) {
           if (!file) throw new Error(`Error no attached file found for ${filePath}`)
 
           const filestoreResponse = await addFile(file)
-          return [key, formatHash(filestoreResponse)]
+          return [key, { Literal: [] }]
+          //return [key, formatHash(filestoreResponse)]
         } else {
           if (value.length > METADATA_KEY_LENGTH)
             throw new Error(`Metadata value: ${value} is too long. Maximum length is ${METADATA_KEY_LENGTH}`)
@@ -144,12 +154,15 @@ async function runProcess(inputs, outputs) {
 
     // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
+    console.log(inputs)
+    console.log(outputsAsPair)
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
     return new Promise((resolve) => {
       let unsub = null
       api.tx.simpleNftModule
         .runProcess(inputs, outputsAsPair)
         .signAndSend(alice, (result) => {
+          console.log(JSON.stringify(result.status))
           logger.debug('result.status %s', JSON.stringify(result.status))
           logger.debug('result.status.isInBlock', result.status.isInBlock)
           if (result.status.isInBlock) {
