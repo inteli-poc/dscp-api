@@ -114,11 +114,34 @@ async function getLastTokenId() {
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
-function membershipReducer(values) {
-  return values.reduce((acc, item) => {
-    acc.push({ address: item })
-    return acc
+function membershipValidator(members) {
+  const keyring = new Keyring({ type: 'sr25519' })
+  const alice = keyring.addFromUri(USER_URI)
+  const validMembers = [alice.address]
+
+  const validatedMembers = validMembers.reduce((acc, item) => {
+    if (members.includes(item)) {
+      acc.push(item)
+      return acc
+    }
   }, [])
+
+  return { validMembers, validatedMembers, validMembersResult: validMembers.length === validatedMembers.length }
+}
+
+function membershipReducer(values) {
+  const { validMembers, validatedMembers, validMembersResult } = membershipValidator(values)
+
+  if (validMembersResult) {
+    return values.reduce((acc, item) => {
+      acc.push({ address: item })
+      return acc
+    }, [])
+  } else {
+    logger.error(`Error was validatedMembers ${validatedMembers} was not fulfilled via validMembers ${validMembers}`)
+
+    return []
+  }
 }
 
 async function getMembers() {
