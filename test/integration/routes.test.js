@@ -19,14 +19,15 @@ const {
 } = require('../helper/routeHelper')
 const USER_ALICE_TOKEN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 const USER_BOB_TOKEN = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty'
-const { createToken, assertItem } = require('../helper/appHelper')
-const { processMetadata, runProcess } = require('../../app/util/appUtil')
+const { assertItem } = require('../helper/appHelper')
+const { runProcess } = require('../../app/util/appUtil')
 const {
   AUTH_TOKEN_URL,
   AUTH_ISSUER,
   AUTH_AUDIENCE,
   LEGACY_METADATA_KEY,
   METADATA_KEY_LENGTH,
+  METADATA_VALUE_LITERAL_LENGTH,
 } = require('../../app/env')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -197,7 +198,7 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testNone'])
     })
 
-    test('add and get item - metadata file + literal + none', async function () {
+    test('add and get item metadata - FILE + LITERAL + NONE', async function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
@@ -239,7 +240,7 @@ describe('routes', function () {
       expect(testNone.body).to.deep.equal({})
     })
 
-    test('add and get item - multiple metadata files', async function () {
+    test('add and get item - multiple FILE', async function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
@@ -262,7 +263,7 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testFile1', 'testFile2'])
     })
 
-    test('add and get item - multiple literals', async function () {
+    test('add and get item - multiple LITERAL', async function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
@@ -285,7 +286,7 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testLiteral1', 'testLiteral2'])
     })
 
-    test('add item - missing file attachments', async function () {
+    test('add item - missing FILE attachments', async function () {
       const outputs = [
         { owner: USER_ALICE_TOKEN, metadata: { testFile1: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
@@ -303,6 +304,48 @@ describe('routes', function () {
       expect(runProcessResult.body).to.have.property('message')
       expect(runProcessResult.status).to.equal(400)
     })
+
+    test('add item - invalid metadata type', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'INVALID', value: 'test' } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
+
+    test('add item - metadata FILE without value field', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'FILE' } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
+
+    test('add item - metadata LITERAL without value field', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'LITERAL' } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
+
+    test('add item - metadata LITERAL value too long', async function () {
+      const literalValue = 'a'.repeat(METADATA_VALUE_LITERAL_LENGTH + 1)
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'LITERAL', value: literalValue } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
+
+    // test.only('add item - too many metadata items', async function () {
+    //   const tooMany = {}
+    //   for (let i = 0; i < 17; i++) {
+    //     tooMany[`${i}`] = { type: 'NONE' }
+    //   }
+    //   const outputs = [{ owner: USER_ALICE_TOKEN, metadata: tooMany }]
+
+    //   const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+    //   console.log(runProcessResult.body)
+    //   expect(runProcessResult.body).to.have.property('message')
+    //   expect(runProcessResult.status).to.equal(400)
+    // })
 
     test('get item - missing ID', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
@@ -499,5 +542,3 @@ describe('routes', function () {
     })
   })
 })
-
-//TODO  test invalid type, add literal value limit

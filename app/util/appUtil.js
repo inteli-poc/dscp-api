@@ -7,7 +7,15 @@ const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
 
-const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT, METADATA_KEY_LENGTH } = require('../env')
+const {
+  API_HOST,
+  API_PORT,
+  USER_URI,
+  IPFS_HOST,
+  IPFS_PORT,
+  METADATA_KEY_LENGTH,
+  METADATA_VALUE_LITERAL_LENGTH,
+} = require('../env')
 const logger = require('../logger')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
@@ -33,7 +41,7 @@ const apiOptions = {
     MetadataValue: {
       _enum: {
         File: 'Hash',
-        Literal: '[u8; 32]',
+        Literal: `[u8; ${METADATA_VALUE_LITERAL_LENGTH}]`,
         None: null,
       },
     },
@@ -91,15 +99,19 @@ async function processMetadata(metadata, files) {
         const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
         if (typeof value !== 'object' || !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type)) {
           throw new Error(
-            `Error invalid type in ${key}:${JSON.stringify(
-              value
-            )}. Must be one of ${validMetadataValueTypes.toString()}`
+            `Error invalid type in ${key}:${JSON.stringify(value)}. Must be one of ${validMetadataValueTypes.map((t) =>
+              t.toUpperCase()
+            )}`
           )
         }
 
         switch (value.type) {
           case 'LITERAL':
             if (!value.value) throw new Error(`Literal metadata requires a value field`)
+            if (value.value.length > METADATA_VALUE_LITERAL_LENGTH)
+              throw new Error(
+                `${key}:${value.value} is too long. Maximum LITERAL length is ${METADATA_VALUE_LITERAL_LENGTH}`
+              )
             return [key, { Literal: value.value }]
           case 'FILE': {
             if (!value.value) throw new Error(`File metadata requires a value field`)
@@ -112,8 +124,9 @@ async function processMetadata(metadata, files) {
             return [key, { File: formatHash(filestoreResponse) }]
           }
           default:
-          case 'NONE':
+          case 'NONE': {
             return [key, { None: null }]
+          }
         }
       })
     )
