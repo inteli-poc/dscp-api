@@ -150,9 +150,9 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal([LEGACY_METADATA_KEY])
     })
 
-    test.only('add and get item - single metadata file', async function () {
+    test('add and get item - single metadata file', async function () {
       const outputs = [
-        { owner: USER_ALICE_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_01.txt' } } },
+        { owner: USER_ALICE_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
@@ -168,7 +168,7 @@ describe('routes', function () {
     })
 
     test('add and get item - single literal', async function () {
-      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testLiteral: 'notAFile' } }]
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testLiteral: { type: 'LITERAL', value: 'notAFile' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
@@ -186,11 +186,13 @@ describe('routes', function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
-          metadata: { testFile: { filePath: './test/data/test_file_01.txt' }, testLiteral: 'notAFile' },
+          metadata: {
+            testFile: { type: 'FILE', value: './test/data/test_file_01.txt' },
+            testLiteral: { type: 'LITERAL', value: 'notAFile' },
+          },
         },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
 
@@ -214,7 +216,6 @@ describe('routes', function () {
       })
 
       expect(testLiteral.body).equal('notAFile')
-      console.log(testLiteral.headers)
     })
 
     test('add and get item - multiple metadata files', async function () {
@@ -222,8 +223,8 @@ describe('routes', function () {
         {
           owner: USER_ALICE_TOKEN,
           metadata: {
-            testFile1: { filePath: './test/data/test_file_01.txt' },
-            testFile2: { filePath: './test/data/test_file_02.txt' },
+            testFile1: { type: 'FILE', value: './test/data/test_file_01.txt' },
+            testFile2: { type: 'FILE', value: './test/data/test_file_02.txt' },
           },
         },
       ]
@@ -244,7 +245,10 @@ describe('routes', function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
-          metadata: { testLiteral1: 'test', testLiteral2: 'test' },
+          metadata: {
+            testLiteral1: { type: 'LITERAL', value: 'test1' },
+            testLiteral2: { type: 'LITERAL', value: 'test2' },
+          },
         },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
@@ -262,7 +266,7 @@ describe('routes', function () {
 
     test('add item - missing file attachments', async function () {
       const outputs = [
-        { owner: USER_ALICE_TOKEN, metadata: { testFile1: { filePath: './test/data/test_file_01.txt' } } },
+        { owner: USER_ALICE_TOKEN, metadata: { testFile1: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
       const runProcessResult = await postRunProcessNoFileAttach(app, authToken, [], outputs)
 
@@ -272,7 +276,7 @@ describe('routes', function () {
 
     test('add item - metadataKey too long', async function () {
       const metadataKey = 'a'.repeat(METADATA_KEY_LENGTH + 1)
-      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: 'test' } }]
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
 
       expect(runProcessResult.body).to.have.property('message')
@@ -301,7 +305,7 @@ describe('routes', function () {
 
       const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-      const output = { owner: USER_ALICE_TOKEN, metadata: { testFile: base64Metadata } }
+      const output = { owner: USER_ALICE_TOKEN, metadata: { testFile: { File: base64Metadata } } }
 
       await runProcess([], [output])
 
@@ -317,7 +321,7 @@ describe('routes', function () {
       const { Hash: base58Metadata } = await addFileRouteLegacy('./test/data/test_file_01.txt')
       const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-      const output = { owner: USER_ALICE_TOKEN, metadata: { testFile: base64Metadata } }
+      const output = { owner: USER_ALICE_TOKEN, metadata: { testFile: { File: base64Metadata } } }
 
       await runProcess([], [output])
 
@@ -393,7 +397,9 @@ describe('routes', function () {
 
       let expectedResult = [lastTokenId + 1]
 
-      const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_01.txt' } } }]
+      const outputs = [
+        { owner: USER_BOB_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
+      ]
       const actualResult = await postRunProcess(app, authToken, [], outputs)
 
       expect(actualResult.status).to.equal(200)
@@ -431,12 +437,14 @@ describe('routes', function () {
         [
           {
             owner: USER_ALICE_TOKEN,
-            metadata: { testFile: { filePath: './test/data/test_file_01.txt' } },
+            metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } },
           },
         ]
       )
 
-      const outputs = [{ owner: USER_BOB_TOKEN, metadata: { testFile: { filePath: './test/data/test_file_04.txt' } } }]
+      const outputs = [
+        { owner: USER_BOB_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_04.txt' } } },
+      ]
       const actualResult = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
 
       expect(actualResult.status).to.equal(200)
@@ -470,3 +478,5 @@ describe('routes', function () {
     })
   })
 })
+
+//TODO test none type, test invalid type

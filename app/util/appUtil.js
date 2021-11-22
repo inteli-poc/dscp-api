@@ -11,7 +11,7 @@ const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT, METADATA_KEY_LENGTH 
 const logger = require('../logger')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
-const metadata = {
+const apiOptions = {
   provider,
   types: {
     Address: 'MultiAddress',
@@ -32,17 +32,18 @@ const metadata = {
     },
     MetadataValue: {
       _enum: {
-        File: 'File',
-        Literal: 'Literal',
+        File: 'Hash',
+        Literal: '[u8; 32]',
         None: null,
       },
     },
-    File: 'Hash',
-    Literal: '[u8; 32]',
+    // MetadataValue: {
+    //   _enum: ['File', 'Literal', 'None'],
+    // },
   },
 }
 
-const api = new ApiPromise(metadata)
+const api = new ApiPromise(apiOptions)
 
 api.on('disconnected', () => {
   logger.warn(`Disconnected from substrate node at ${API_HOST}:${API_PORT}`)
@@ -90,21 +91,33 @@ async function processMetadata(metadata, files) {
         if (key.length > METADATA_KEY_LENGTH)
           throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
 
-        if (typeof value === 'object') {
-          const filePath = value.filePath
-          if (!filePath) throw new Error(`Error no filePath field in ${key}: ${JSON.stringify(value)}`)
+        const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
+        if (
+          typeof value !== 'object' ||
+          !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type) ||
+          value.value === undefined
+        ) {
+          throw new Error(
+            `Error bad format in ${key}:${JSON.stringify(
+              value
+            )}. Must have value field. Type must be one of ${validMetadataValueTypes.toString()}`
+          )
+        }
 
-          const file = files[filePath]
-          if (!file) throw new Error(`Error no attached file found for ${filePath}`)
+        switch (value.type) {
+          case 'LITERAL':
+            return [key, { Literal: value.value }]
+          case 'FILE': {
+            const filePath = value.value
+            const file = files[filePath]
+            if (!file) throw new Error(`Error no attached file found for ${filePath}`)
 
-          const filestoreResponse = await addFile(file)
-          return [key, { Literal: [] }]
-          //return [key, formatHash(filestoreResponse)]
-        } else {
-          if (value.length > METADATA_KEY_LENGTH)
-            throw new Error(`Metadata value: ${value} is too long. Maximum length is ${METADATA_KEY_LENGTH}`)
-
-          return [key, value]
+            const filestoreResponse = await addFile(file)
+            return [key, { File: formatHash(filestoreResponse) }]
+          }
+          default:
+          case 'NONE':
+            return [key, { None: null }]
         }
       })
     )
@@ -154,15 +167,14 @@ async function runProcess(inputs, outputs) {
 
     // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
-    console.log(inputs)
-    console.log(outputsAsPair)
+    console.log(JSON.stringify(outputsAsPair))
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
+
     return new Promise((resolve) => {
       let unsub = null
       api.tx.simpleNftModule
         .runProcess(inputs, outputsAsPair)
         .signAndSend(alice, (result) => {
-          console.log(JSON.stringify(result.status))
           logger.debug('result.status %s', JSON.stringify(result.status))
           logger.debug('result.status.isInBlock', result.status.isInBlock)
           if (result.status.isInBlock) {

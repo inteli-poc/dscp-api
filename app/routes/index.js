@@ -63,25 +63,35 @@ const getMetadataResponse = async (id, metadataKey, res) => {
         const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
         buffer.write(metadataKey)
         const metadataKeyHex = `0x${buffer.toString('hex')}`
-        const hash = metadata[metadataKeyHex]
-        if (!hash) {
+        const metadataValue = metadata[metadataKeyHex]
+
+        if (!metadataValue) {
           res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
           return
         }
-        const { file, filename } = await getFile(hash)
 
-        await new Promise((resolve, reject) => {
-          res.status(200)
-          res.set({
-            immutable: true,
-            maxAge: 365 * 24 * 60 * 60 * 1000,
-            'Content-Disposition': `attachment; filename="${filename}"`,
+        if (metadataValue.file) {
+          const { file, filename } = await getFile(metadataValue.file)
+
+          await new Promise((resolve, reject) => {
+            res.status(200)
+            res.set({
+              immutable: true,
+              maxAge: 365 * 24 * 60 * 60 * 1000,
+              'Content-Disposition': `attachment; filename="${filename}"`,
+            })
+            file.pipe(res)
+            file.on('error', (err) => reject(err))
+            res.on('finish', () => resolve())
           })
-          file.pipe(res)
-          file.on('error', (err) => reject(err))
-          res.on('finish', () => resolve())
-        })
-        return
+          return
+        }
+
+        if (metadataValue.literal) {
+          const readable = Buffer.from(metadataValue.literal.slice(2), 'hex').toString('utf8').replace(/\0/g, '')
+          res.status(200).json(readable)
+          return
+        }
       } catch (err) {
         logger.warn(`Error fetching metadata file. Error was ${err}`)
         if (!res.headersSent) {
@@ -149,7 +159,7 @@ router.post('/run-process', async (req, res) => {
         request.outputs.map(async (output) => {
           //catch legacy single metadataFile
           if (output.metadataFile) {
-            output.metadata = { [LEGACY_METADATA_KEY]: { filePath: output.metadataFile } }
+            output.metadata = { [LEGACY_METADATA_KEY]: { type: 'FILE', value: output.metadataFile } }
           }
           try {
             return {
