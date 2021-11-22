@@ -61,42 +61,27 @@ const getMetadataResponse = async (id, metadataKey, res) => {
     if (getId === id) {
       try {
         const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
-        const metadataKeyBuf = Buffer.from(metadataKey)
-        metadataKeyBuf.copy(buffer, 0)
-        const metadataValue = metadata[`0x${buffer.toString('hex')}`]
-        if (!metadataValue) {
+        buffer.write(metadataKey)
+        const metadataKeyHex = `0x${buffer.toString('hex')}`
+        const hash = metadata[metadataKeyHex]
+        if (!hash) {
           res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
           return
         }
+        const { file, filename } = await getFile(hash)
 
-        let utf8decoder = new TextDecoder('utf-8', { fatal: true })
-        const valueBuffer = Buffer.from(metadataValue.slice(2), 'hex')
-
-        let decodedMetadataValue
-        try {
-          // try to decode to literal
-          decodedMetadataValue = utf8decoder.decode(valueBuffer)
-        } catch (err) {
-          if (err.code === 'ERR_ENCODING_INVALID_ENCODED_DATA') {
-            // must be a file
-            const { file, filename } = await getFile(metadataValue)
-
-            await new Promise((resolve, reject) => {
-              res.status(200)
-              res.set({
-                immutable: true,
-                maxAge: 365 * 24 * 60 * 60 * 1000,
-                'Content-Disposition': `attachment; filename="${filename}"`,
-              })
-              file.pipe(res)
-              file.on('error', (err) => reject(err))
-              res.on('finish', () => resolve())
-            })
-            return
-          }
-        }
-        const readable = decodedMetadataValue.replace(/\0/g, '')
-        res.status(200).json(readable)
+        await new Promise((resolve, reject) => {
+          res.status(200)
+          res.set({
+            immutable: true,
+            maxAge: 365 * 24 * 60 * 60 * 1000,
+            'Content-Disposition': `attachment; filename="${filename}"`,
+          })
+          file.pipe(res)
+          file.on('error', (err) => reject(err))
+          res.on('finish', () => resolve())
+        })
+        return
       } catch (err) {
         logger.warn(`Error fetching metadata file. Error was ${err}`)
         if (!res.headersSent) {
