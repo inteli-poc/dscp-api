@@ -396,14 +396,12 @@ describe('routes', function () {
     })
 
     test('return membership members', async function () {
-      let expectedResult = {
-        members: [
-          { address: USER_BOB_TOKEN },
-          { address: ALICE_STASH },
-          { address: USER_ALICE_TOKEN },
-          { address: BOB_STASH },
-        ],
-      }
+      let expectedResult = [
+        { address: USER_BOB_TOKEN },
+        { address: ALICE_STASH },
+        { address: USER_ALICE_TOKEN },
+        { address: BOB_STASH },
+      ]
 
       const res = await getMembersRoute(app, authToken)
 

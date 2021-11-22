@@ -116,7 +116,7 @@ router.get('/item/:id/metadata/:metadataKey', async (req, res) => {
 router.get('/members', async (req, res) => {
   try {
     const members = await getMembers()
-    res.status(200).json({ members: members })
+    res.status(200).json(members)
   } catch (err) {
     logger.error(`Error getting members. Error was ${err.message || JSON.stringify(err)}`)
     if (!res.headersSent) {
