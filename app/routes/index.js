@@ -10,6 +10,7 @@ const {
   validateTokenIds,
   getReadableMetadataKeys,
   getMembers,
+  containsInvalidateMembershipOwners,
 } = require('../util/appUtil')
 const logger = require('../logger')
 const { LEGACY_METADATA_KEY, METADATA_KEY_LENGTH } = require('../env')
@@ -145,7 +146,12 @@ router.post('/run-process', async (req, res) => {
         return
       }
 
-      if (!request || !request.inputs || !request.outputs) {
+      if (
+        !request ||
+        !request.inputs ||
+        !request.outputs ||
+        (await containsInvalidateMembershipOwners(request.outputs))
+      ) {
         logger.trace(`Request missing input and/or outputs`)
         res.status(400).json({ message: `Request missing input and/or outputs` })
         return
