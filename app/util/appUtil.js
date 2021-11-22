@@ -125,7 +125,7 @@ async function getLastTokenId() {
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
-async function containsInvalidateMembershipOwners(outputs) {
+async function containsInvalidMembershipOwners(outputs) {
   const membershipMembers = await getMembers(false)
 
   const validOwners = outputs.reduce((acc, { owner }) => {
@@ -231,5 +231,5 @@ module.exports = {
   getMembers,
   validateTokenIds,
   getReadableMetadataKeys,
-  containsInvalidateMembershipOwners,
+  containsInvalidateMembershipOwners: containsInvalidMembershipOwners,
 }
