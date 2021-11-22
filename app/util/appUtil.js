@@ -37,9 +37,6 @@ const apiOptions = {
         None: null,
       },
     },
-    // MetadataValue: {
-    //   _enum: ['File', 'Literal', 'None'],
-    // },
   },
 }
 
@@ -92,22 +89,21 @@ async function processMetadata(metadata, files) {
           throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
 
         const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
-        if (
-          typeof value !== 'object' ||
-          !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type) ||
-          value.value === undefined
-        ) {
+        if (typeof value !== 'object' || !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type)) {
           throw new Error(
-            `Error bad format in ${key}:${JSON.stringify(
+            `Error invalid type in ${key}:${JSON.stringify(
               value
-            )}. Must have value field. Type must be one of ${validMetadataValueTypes.toString()}`
+            )}. Must be one of ${validMetadataValueTypes.toString()}`
           )
         }
 
         switch (value.type) {
           case 'LITERAL':
+            if (!value.value) throw new Error(`Literal metadata requires a value field`)
             return [key, { Literal: value.value }]
           case 'FILE': {
+            if (!value.value) throw new Error(`File metadata requires a value field`)
+
             const filePath = value.value
             const file = files[filePath]
             if (!file) throw new Error(`Error no attached file found for ${filePath}`)
@@ -167,7 +163,6 @@ async function runProcess(inputs, outputs) {
 
     // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
-    console.log(JSON.stringify(outputsAsPair))
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
 
     return new Promise((resolve) => {
@@ -193,6 +188,21 @@ async function runProcess(inputs, outputs) {
   }
 
   return new Error('An error occurred whilst adding an item.')
+}
+
+const getItemMetadataSingle = async (tokenId, metadataKey) => {
+  const { metadata, id } = await getItem(tokenId)
+  if (id !== tokenId) throw new Error(`Id not found: ${tokenId}`)
+
+  const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
+  buffer.write(metadataKey)
+  const metadataKeyHex = `0x${buffer.toString('hex')}`
+  const metadataValue = metadata[metadataKeyHex]
+
+  if (!metadataValue) {
+    throw new Error(`No metadata with key '${metadataKey}' for token with ID: ${tokenId}`)
+  }
+  return metadataValue
 }
 
 async function getItem(tokenId) {
@@ -232,6 +242,7 @@ const validateTokenIds = async (ids) => {
 
 module.exports = {
   runProcess,
+  getItemMetadataSingle,
   getItem,
   getLastTokenId,
   processMetadata,

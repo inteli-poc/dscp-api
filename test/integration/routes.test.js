@@ -150,7 +150,7 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal([LEGACY_METADATA_KEY])
     })
 
-    test('add and get item - single metadata file', async function () {
+    test('add and get item - single metadata FILE', async function () {
       const outputs = [
         { owner: USER_ALICE_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
@@ -167,7 +167,7 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testFile'])
     })
 
-    test('add and get item - single literal', async function () {
+    test('add and get item - single metadata LITERAL', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testLiteral: { type: 'LITERAL', value: 'notAFile' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
@@ -182,13 +182,29 @@ describe('routes', function () {
       expect(getItemResult.body.metadata).to.deep.equal(['testLiteral'])
     })
 
-    test('add and get item - metadata file + literal', async function () {
+    test('add and get item - single NONE', async function () {
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testNone: { type: 'NONE' } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.length(1)
+      expect(runProcessResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+      expect(getItemResult.body.metadata).to.deep.equal(['testNone'])
+    })
+
+    test('add and get item - metadata file + literal + none', async function () {
       const outputs = [
         {
           owner: USER_ALICE_TOKEN,
           metadata: {
             testFile: { type: 'FILE', value: './test/data/test_file_01.txt' },
             testLiteral: { type: 'LITERAL', value: 'notAFile' },
+            testNone: { type: 'NONE' },
           },
         },
       ]
@@ -202,7 +218,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testFile', 'testLiteral'])
+      expect(getItemResult.body.metadata).to.deep.equal(['testFile', 'testLiteral', 'testNone'])
 
       const testFile = await getItemMetadataRoute(app, authToken, {
         id: lastToken.body.id,
@@ -214,8 +230,13 @@ describe('routes', function () {
         id: lastToken.body.id,
         metadataKey: 'testLiteral',
       })
-
       expect(testLiteral.body).equal('notAFile')
+
+      const testNone = await getItemMetadataRoute(app, authToken, {
+        id: lastToken.body.id,
+        metadataKey: 'testNone',
+      })
+      expect(testNone.body).to.deep.equal({})
     })
 
     test('add and get item - multiple metadata files', async function () {
@@ -479,4 +500,4 @@ describe('routes', function () {
   })
 })
 
-//TODO test none type, test invalid type
+//TODO  test invalid type, add literal value limit

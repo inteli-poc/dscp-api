@@ -9,9 +9,10 @@ const {
   getFile,
   validateTokenIds,
   getReadableMetadataKeys,
+  getItemMetadataSingle,
 } = require('../util/appUtil')
 const logger = require('../logger')
-const { LEGACY_METADATA_KEY, METADATA_KEY_LENGTH } = require('../env')
+const { LEGACY_METADATA_KEY } = require('../env')
 
 const router = express.Router()
 
@@ -56,59 +57,59 @@ router.get('/item/:id', async (req, res) => {
 })
 
 const getMetadataResponse = async (id, metadataKey, res) => {
-  if (Number.isInteger(id) && id !== 0) {
-    const { metadata, id: getId } = await getItem(id)
-    if (getId === id) {
-      try {
-        const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
-        buffer.write(metadataKey)
-        const metadataKeyHex = `0x${buffer.toString('hex')}`
-        const metadataValue = metadata[metadataKeyHex]
+  if (!Number.isInteger(id) || id === 0) {
+    logger.trace(`Invalid id: ${id}`)
+    res.status(400).json({ message: `Invalid id: ${id}` })
+    return
+  }
 
-        if (!metadataValue) {
-          res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
-          return
-        }
+  let metadataValue
+  try {
+    metadataValue = await getItemMetadataSingle(id, metadataKey)
+  } catch (err) {
+    logger.trace(`Invalid metadata request: ${err.message}`)
+    res.status(404).json({ message: err.message })
+    return
+  }
 
-        if (metadataValue.file) {
-          const { file, filename } = await getFile(metadataValue.file)
-
-          await new Promise((resolve, reject) => {
-            res.status(200)
-            res.set({
-              immutable: true,
-              maxAge: 365 * 24 * 60 * 60 * 1000,
-              'Content-Disposition': `attachment; filename="${filename}"`,
-            })
-            file.pipe(res)
-            file.on('error', (err) => reject(err))
-            res.on('finish', () => resolve())
-          })
-          return
-        }
-
-        if (metadataValue.literal) {
-          const readable = Buffer.from(metadataValue.literal.slice(2), 'hex').toString('utf8').replace(/\0/g, '')
-          res.status(200).json(readable)
-          return
-        }
-      } catch (err) {
-        logger.warn(`Error fetching metadata file. Error was ${err}`)
-        if (!res.headersSent) {
-          res.status(500).send(`Error fetching metadata file`)
-          return
-        }
-      }
-    } else {
-      res.status(404).json({
-        message: `Id not found: ${id}`,
-      })
+  if (metadataValue.file) {
+    let file
+    try {
+      file = await getFile(metadataValue.file)
+    } catch (err) {
+      logger.warn(`Error fetching metadata file: ${metadataValue.file}. Error was ${err}`)
+      res.status(500).send(`Error fetching metadata file: ${metadataValue.file}`)
       return
     }
+
+    await new Promise((resolve, reject) => {
+      res.status(200)
+      res.set({
+        immutable: true,
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        'Content-Disposition': `attachment; filename="${file.filename}"`,
+      })
+      file.file.pipe(res)
+      file.file.on('error', (err) => reject(err))
+      res.on('finish', () => resolve())
+    })
+    return
   }
-  res.status(400).json({
-    message: `Invalid id: ${id}`,
-  })
+
+  if (metadataValue.literal) {
+    const readable = Buffer.from(metadataValue.literal.slice(2), 'hex').toString('utf8').replace(/\0/g, '')
+    res.status(200).json(readable)
+    return
+  }
+
+  if ('none' in metadataValue) {
+    res.status(200).json({})
+    return
+  }
+
+  logger.warn(`Error fetching metadata: ${metadataKey}:${metadataValue}`)
+  res.status(500).send(`Error fetching metadata`)
+  return
 }
 
 // legacy route, gets metadata with legacy key
@@ -167,7 +168,9 @@ router.post('/run-process', async (req, res) => {
               metadata: await processMetadata(output.metadata, files),
             }
           } catch (err) {
+            logger.trace(`Invalid metadata: ${err.message}`)
             res.status(400).json({ message: err.message })
+            return
           }
         })
       )
