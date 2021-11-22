@@ -231,5 +231,5 @@ module.exports = {
   getMembers,
   validateTokenIds,
   getReadableMetadataKeys,
-  containsInvalidateMembershipOwners: containsInvalidMembershipOwners,
+  containsInvalidMembershipOwners,
 }
