@@ -410,7 +410,7 @@ describe('routes', function () {
     })
 
     test('run-process with invalid member', async function () {
-      let expectedResult = { message: 'Request missing input and/or outputs' }
+      let expectedResult = { message: 'Request contains invalid owners that are not members of the membership list' }
 
       const actualResult = await postRunProcess(
         app,
@@ -432,7 +432,7 @@ describe('routes', function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
       const lastTokenId = lastToken.body.id
 
-      let expectedResult = { message: 'Request missing input and/or outputs' }
+      let expectedResult = { message: 'Request contains invalid owners that are not members of the membership list' }
 
       await postRunProcess(
         app,

@@ -150,17 +150,13 @@ router.post('/run-process', async (req, res) => {
       }
 
       if (!request || !request.inputs || !request.outputs) {
-        if (await containsInvalidMembershipOwners(request.outputs)) {
-          logger.trace(`Request contains invalid owners that are not members of the membership list`)
-          res
-            .status(400)
-            .json({ message: `Request contains invalid owners that are not members of the membership list` })
-          return
-        } else {
-          logger.trace(`Request missing input and/or outputs`)
-          res.status(400).json({ message: `Request missing input and/or outputs` })
-          return
-        }
+        logger.trace(`Request missing input and/or outputs`)
+        res.status(400).json({ message: `Request missing input and/or outputs` })
+        return
+      } else if (request.outputs && (await containsInvalidMembershipOwners(request.outputs))) {
+        logger.trace(`Request contains invalid owners that are not members of the membership list`)
+        res.status(400).json({ message: `Request contains invalid owners that are not members of the membership list` })
+        return
       }
 
       const inputsValid = await validateTokenIds(request.inputs)
