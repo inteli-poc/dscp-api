@@ -176,3 +176,15 @@ Gets the `id` of the last item created by [POST /run-process](#post-/run-process
 Maintained for backwards compatibility. New tokens should use [GET /item/:id/metadata/:metadataKey](#get-/item/:id/metadata/:metadataKey).
 
 Gets the metadata file matching the `LEGACY_METADATA_KEY` env for the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). The file will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
+
+### GET /members
+
+Each element returned represents a member and their corresponding address in the following format:
+
+```js
+[
+    {
+        "address": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+    }
+]
+```
