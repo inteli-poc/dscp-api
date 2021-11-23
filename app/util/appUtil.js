@@ -126,7 +126,7 @@ async function getLastTokenId() {
 }
 
 async function containsInvalidMembershipOwners(outputs) {
-  const membershipMembers = await getMembers(false)
+  const membershipMembers = await getMembers()
 
   const validOwners = outputs.reduce((acc, { owner }) => {
     if (membershipMembers.includes(owner)) {
@@ -145,12 +145,12 @@ function membershipReducer(members) {
   }, [])
 }
 
-async function getMembers(reduceMembers = true) {
+async function getMembers() {
   await api.isReady
 
   const result = await api.query.membership.members()
 
-  return reduceMembers ? membershipReducer(result) : result
+  return result
 }
 
 async function runProcess(inputs, outputs) {
@@ -232,4 +232,5 @@ module.exports = {
   validateTokenIds,
   getReadableMetadataKeys,
   containsInvalidMembershipOwners,
+  membershipReducer,
 }
