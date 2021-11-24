@@ -289,6 +289,7 @@ const validateTokenId = (tokenId) => {
   try {
     id = parseInt(tokenId, 10)
   } catch (err) {
+    logger.error(`Error parsing tokenId. Error was ${err.message || JSON.stringify(err)}`)
     return null
   }
 
