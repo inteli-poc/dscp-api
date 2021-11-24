@@ -188,8 +188,10 @@ describe('routes', function () {
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
+
       const lastToken = await getLastTokenIdRoute(app, authToken)
       expect(lastToken.body).to.have.property('id')
+
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
@@ -362,6 +364,32 @@ describe('routes', function () {
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body.message).to.contain('too many')
       expect(runProcessResult.status).to.equal(400)
+    })
+
+    // covers bug in polkadotjs/api@<5.2.1 that caused an error when encoding a BTreeMap with non-ascending keys
+    test('add item - non-ascending keys', async function () {
+      const outputs = [
+        {
+          owner: USER_ALICE_TOKEN,
+          metadata: {
+            3: { type: 'NONE' },
+            2: { type: 'NONE' },
+            1: { type: 'NONE' },
+          },
+        },
+      ]
+
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.length(1)
+      expect(runProcessResult.status).to.equal(200)
+
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      expect(lastToken.body).to.have.property('id')
+
+      const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+      expect(getItemResult.status).to.equal(200)
+      expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+      expect(getItemResult.body.metadata).to.deep.equal(['1', '2', '3'])
     })
 
     test('get item - missing ID', async function () {
