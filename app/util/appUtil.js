@@ -165,7 +165,7 @@ const utf8ToUint8Array = (str, len) => {
 const downloadFile = async (dirHash) => {
   const dirUrl = `http://${IPFS_HOST}:${IPFS_PORT}/api/v0/ls?arg=${dirHash}`
   const dirRes = await fetch(dirUrl, { method: 'POST' })
-  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}):${await dirRes.text()}`)
+  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}): ${await dirRes.text()}`)
 
   // Parse stream of dir data to get the file hash
   const pipeline = dirRes.body.pipe(StreamValues.withParser())
