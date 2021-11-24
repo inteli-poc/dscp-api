@@ -90,11 +90,14 @@ function formatHash(filestoreResponse) {
 }
 
 async function processMetadata(metadata, files) {
-  return Object.fromEntries(
+  return new Map(
     await Promise.all(
       Object.entries(metadata).map(async ([key, value]) => {
-        if (key.length > METADATA_KEY_LENGTH)
-          throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
+        const lengthInHex = new TextEncoder('hex').encode(key).length
+        if (lengthInHex > METADATA_KEY_LENGTH)
+          throw new Error(
+            `Key: ${key} is too long. Hex length of ${lengthInHex} bytes. Max length: ${METADATA_KEY_LENGTH}`
+          )
 
         const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
         if (typeof value !== 'object' || !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type)) {
@@ -104,15 +107,20 @@ async function processMetadata(metadata, files) {
             )}`
           )
         }
+        const keyAsUint8Array = utf8ToUint8Array(key, METADATA_KEY_LENGTH)
 
         switch (value.type) {
-          case 'LITERAL':
-            if (!value.value) throw new Error(`Literal metadata requires a value field`)
-            if (value.value.length > METADATA_VALUE_LITERAL_LENGTH)
+          case 'LITERAL': {
+            const literalValue = value.value
+            if (!literalValue) throw new Error(`Literal metadata requires a value field`)
+            const lengthInHex = new TextEncoder('hex').encode(literalValue).length
+            if (lengthInHex > METADATA_VALUE_LITERAL_LENGTH)
               throw new Error(
-                `${key}:${value.value} is too long. Maximum LITERAL length is ${METADATA_VALUE_LITERAL_LENGTH}`
+                `${key}:${literalValue} is too long. Hex length of ${lengthInHex} bytes. Maximum LITERAL length is ${METADATA_VALUE_LITERAL_LENGTH}`
               )
-            return [key, { Literal: value.value }]
+            const valueAsUint8Array = utf8ToUint8Array(literalValue, METADATA_VALUE_LITERAL_LENGTH)
+            return [keyAsUint8Array, { Literal: valueAsUint8Array }]
+          }
           case 'FILE': {
             if (!value.value) throw new Error(`File metadata requires a value field`)
 
@@ -121,11 +129,11 @@ async function processMetadata(metadata, files) {
             if (!file) throw new Error(`Error no attached file found for ${filePath}`)
 
             const filestoreResponse = await addFile(file)
-            return [key, { File: formatHash(filestoreResponse) }]
+            return [keyAsUint8Array, { File: formatHash(filestoreResponse) }]
           }
           default:
           case 'NONE': {
-            return [key, { None: null }]
+            return [keyAsUint8Array, { None: null }]
           }
         }
       })
@@ -133,10 +141,16 @@ async function processMetadata(metadata, files) {
   )
 }
 
+const utf8ToUint8Array = (str, len) => {
+  const arr = new Uint8Array(len)
+  arr.set(Buffer.from(str))
+  return arr
+}
+
 const downloadFile = async (dirHash) => {
   const dirUrl = `http://${IPFS_HOST}:${IPFS_PORT}/api/v0/ls?arg=${dirHash}`
   const dirRes = await fetch(dirUrl, { method: 'POST' })
-  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}):`)
+  if (!dirRes.ok) throw new Error(`Error fetching directory from IPFS (${dirRes.status}):${await dirRes.text()}`)
 
   // Parse stream of dir data to get the file hash
   const pipeline = dirRes.body.pipe(StreamValues.withParser())
@@ -177,7 +191,6 @@ async function runProcess(inputs, outputs) {
     // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
-
     return new Promise((resolve) => {
       let unsub = null
       api.tx.simpleNftModule
@@ -207,10 +220,7 @@ const getItemMetadataSingle = async (tokenId, metadataKey) => {
   const { metadata, id } = await getItem(tokenId)
   if (id !== tokenId) throw new Error(`Id not found: ${tokenId}`)
 
-  const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
-  buffer.write(metadataKey)
-  const metadataKeyHex = `0x${buffer.toString('hex')}`
-  const metadataValue = metadata[metadataKeyHex]
+  const metadataValue = metadata[utf8ToHex(metadataKey, METADATA_KEY_LENGTH)]
 
   if (!metadataValue) {
     throw new Error(`No metadata with key '${metadataKey}' for token with ID: ${tokenId}`)
@@ -225,8 +235,7 @@ async function getItem(tokenId) {
     await api.isReady
     const item = await api.query.simpleNftModule.tokensById(tokenId)
 
-    // TODO replace...
-    response = JSON.parse(item)
+    response = item.toJSON()
   }
 
   return response
@@ -238,9 +247,19 @@ async function getFile(base64Hash) {
   return downloadFile(base58Hash)
 }
 
+const utf8ToHex = (str, len) => {
+  const buffer = Buffer.alloc(len)
+  buffer.write(str)
+  return `0x${buffer.toString('hex')}`
+}
+
+const hexToUtf8 = (str) => {
+  return Buffer.from(str.slice(2), 'hex').toString('utf8').replace(/\0/g, '') // remove padding
+}
+
 const getReadableMetadataKeys = (metadata) => {
   return Object.keys(metadata).map((key) => {
-    return Buffer.from(key.slice(2), 'hex').toString('utf8').replace(/\0/g, '') // keys are fixed length so remove padding
+    return hexToUtf8(key)
   })
 }
 
@@ -262,4 +281,6 @@ module.exports = {
   getFile,
   validateTokenIds,
   getReadableMetadataKeys,
+  hexToUtf8,
+  utf8ToUint8Array,
 }

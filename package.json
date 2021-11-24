@@ -22,7 +22,7 @@
     "coverage": "LOG_LEVEL=fatal NODE_ENV=development nyc mocha --recursive ./test/integration --timeout 60000 --slow 20000 --exit"
   },
   "dependencies": {
-    "@polkadot/api": "^4.7.2",
+    "@polkadot/api": "^5.9.1",
     "base-x": "^3.0.8",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",

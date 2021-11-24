@@ -10,6 +10,7 @@ const {
   validateTokenIds,
   getReadableMetadataKeys,
   getItemMetadataSingle,
+  hexToUtf8,
 } = require('../util/appUtil')
 const logger = require('../logger')
 const { LEGACY_METADATA_KEY } = require('../env')
@@ -97,8 +98,7 @@ const getMetadataResponse = async (id, metadataKey, res) => {
   }
 
   if (metadataValue.literal) {
-    const readable = Buffer.from(metadataValue.literal.slice(2), 'hex').toString('utf8').replace(/\0/g, '')
-    res.status(200).json(readable)
+    res.status(200).json(hexToUtf8(metadataValue.literal))
     return
   }
 

@@ -20,7 +20,7 @@ const {
 const USER_ALICE_TOKEN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 const USER_BOB_TOKEN = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty'
 const { assertItem } = require('../helper/appHelper')
-const { runProcess } = require('../../app/util/appUtil')
+const { runProcess, utf8ToUint8Array } = require('../../app/util/appUtil')
 const {
   AUTH_TOKEN_URL,
   AUTH_ISSUER,
@@ -158,7 +158,6 @@ describe('routes', function () {
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
-
       const lastToken = await getLastTokenIdRoute(app, authToken)
       expect(lastToken.body).to.have.property('id')
 
@@ -188,10 +187,8 @@ describe('routes', function () {
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
-
       const lastToken = await getLastTokenIdRoute(app, authToken)
       expect(lastToken.body).to.have.property('id')
-
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
@@ -305,6 +302,15 @@ describe('routes', function () {
       expect(runProcessResult.status).to.equal(400)
     })
 
+    test('add item - metadataKey too long (multibyte character)', async function () {
+      const metadataKey = '£'.repeat(METADATA_KEY_LENGTH)
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
+
     test('add item - invalid metadata type', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'INVALID', value: 'test' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
@@ -334,17 +340,61 @@ describe('routes', function () {
       expect(runProcessResult.status).to.equal(400)
     })
 
-    // test.only('add item - too many metadata items', async function () {
-    //   const tooMany = {}
-    //   for (let i = 0; i < 17; i++) {
-    //     tooMany[`${i}`] = { type: 'NONE' }
-    //   }
-    //   const outputs = [{ owner: USER_ALICE_TOKEN, metadata: tooMany }]
+    test('add item - metadata LITERAL value too long (multibyte character)', async function () {
+      const literalValue = '£'.repeat(METADATA_VALUE_LITERAL_LENGTH)
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'LITERAL', value: literalValue } } }]
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
 
+    // test.only('add item - too many metadata items', async function () {
+    //   // const tooMany = {}
+    //   // for (let i = 0; i < 17; i++) {
+    //   //   tooMany[`${i}`] = { type: 'NONE' }
+    //   // }
+    //   // const outputs = [{ owner: USER_ALICE_TOKEN, metadata: tooMany }]
+
+    //   const outputs = [
+    //     {
+    //       owner: USER_ALICE_TOKEN,
+    //       metadata: {
+    //         //testFile: { type: 'FILE', value: './test/data/test_file_01.txt' },
+    //         //testLiteral: { type: 'LITERAL', value: 'notAFile' },
+    //         10: { type: 'NONE' },
+    //         2: { type: 'NONE' },
+    //       },
+    //     },
+    //   ]
     //   const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-    //   console.log(runProcessResult.body)
-    //   expect(runProcessResult.body).to.have.property('message')
-    //   expect(runProcessResult.status).to.equal(400)
+    //   expect(runProcessResult.body).to.have.length(1)
+    //   expect(runProcessResult.status).to.equal(200)
+
+    //   const lastToken = await getLastTokenIdRoute(app, authToken)
+    //   expect(lastToken.body).to.have.property('id')
+
+    //   const getItemResult = await getItemRoute(app, authToken, lastToken.body)
+    //   expect(getItemResult.status).to.equal(200)
+    //   expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+    //   //expect(getItemResult.body.metadata).to.deep.equal(['testFile', 'testLiteral', 'testNone'])
+
+    //   const testFile = await getItemMetadataRoute(app, authToken, {
+    //     id: lastToken.body.id,
+    //     metadataKey: 'testFile',
+    //   })
+    //   expect(testFile.text.toString()).equal('This is the first test file...\n')
+
+    //   const testLiteral = await getItemMetadataRoute(app, authToken, {
+    //     id: lastToken.body.id,
+    //     metadataKey: 'testLiteral',
+    //   })
+    //   expect(testLiteral.body).equal('notAFile')
+
+    //   const testNone = await getItemMetadataRoute(app, authToken, {
+    //     id: lastToken.body.id,
+    //     metadataKey: 'testNone',
+    //   })
+    //   expect(testNone.body).to.deep.equal({})
     // })
 
     test('get item - missing ID', async function () {
@@ -369,9 +419,12 @@ describe('routes', function () {
 
       const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-      const output = { owner: USER_ALICE_TOKEN, metadata: { testFile: { File: base64Metadata } } }
+      const key = utf8ToUint8Array('testFile', METADATA_KEY_LENGTH)
+      const output = { owner: USER_ALICE_TOKEN, metadata: new Map([[key, { File: base64Metadata }]]) }
 
       await runProcess([], [output])
+
+      const actualResult = await getItemRoute(app, authToken, { id: lastToken.body.id + 1 })
 
       const res = await getItemMetadataRoute(app, authToken, { id: lastTokenId + 1, metadataKey: 'testFile' })
 
@@ -385,7 +438,8 @@ describe('routes', function () {
       const { Hash: base58Metadata } = await addFileRouteLegacy('./test/data/test_file_01.txt')
       const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-      const output = { owner: USER_ALICE_TOKEN, metadata: { testFile: { File: base64Metadata } } }
+      const key = utf8ToUint8Array('testFile', METADATA_KEY_LENGTH)
+      const output = { owner: USER_ALICE_TOKEN, metadata: new Map([[key, { File: base64Metadata }]]) }
 
       await runProcess([], [output])
 
