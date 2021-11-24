@@ -98,9 +98,7 @@ async function processMetadata(metadata, files) {
   return new Map(
     await Promise.all(
       metadataItems.map(async ([key, value]) => {
-        const lengthInHex = new TextEncoder('hex').encode(key).length
-        if (lengthInHex > METADATA_KEY_LENGTH)
-          throw new Error(`Key: ${key} is too long: ${lengthInHex} bytes (hex). Max length: ${METADATA_KEY_LENGTH}`)
+        const keyAsUint8Array = utf8ToUint8Array(key, METADATA_KEY_LENGTH)
 
         const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
         if (typeof value !== 'object' || !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type)) {
@@ -124,7 +122,6 @@ async function processMetadata(metadata, files) {
             break
         }
 
-        const keyAsUint8Array = utf8ToUint8Array(key, METADATA_KEY_LENGTH)
         return [keyAsUint8Array, value]
       })
     )
@@ -134,12 +131,6 @@ async function processMetadata(metadata, files) {
 const processLiteral = (value) => {
   const literalValue = value.value
   if (!literalValue) throw new Error(`Literal metadata requires a value field`)
-
-  const lengthInHex = new TextEncoder('hex').encode(literalValue).length
-  if (lengthInHex > METADATA_VALUE_LITERAL_LENGTH)
-    throw new Error(
-      `${literalValue} is too long: ${lengthInHex} bytes (hex). Maximum length is ${METADATA_VALUE_LITERAL_LENGTH}`
-    )
 
   const valueAsUint8Array = utf8ToUint8Array(literalValue, METADATA_VALUE_LITERAL_LENGTH)
   return { Literal: valueAsUint8Array }
@@ -158,7 +149,13 @@ const processFile = async (value, files) => {
 
 const utf8ToUint8Array = (str, len) => {
   const arr = new Uint8Array(len)
-  arr.set(Buffer.from(str))
+  try {
+    arr.set(Buffer.from(str, 'utf8'))
+  } catch (err) {
+    if (err instanceof RangeError) {
+      throw new Error(`${str} is too long. Max length: ${len} bytes`)
+    } else throw err
+  }
   return arr
 }
 

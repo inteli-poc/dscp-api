@@ -102,12 +102,14 @@ const getMetadataResponse = async (tokenId, metadataKey, res) => {
   }
 
   if (metadataValue.literal) {
-    res.status(200).json(hexToUtf8(metadataValue.literal))
+    res.set('content-type', 'text/plain')
+    res.status(200).send(hexToUtf8(metadataValue.literal))
     return
   }
 
   if ('none' in metadataValue) {
-    res.status(200).json({})
+    res.set('content-type', 'text/plain')
+    res.status(200).send('')
     return
   }
 

@@ -224,18 +224,23 @@ describe('routes', function () {
         metadataKey: 'testFile',
       })
       expect(testFile.text.toString()).equal('This is the first test file...\n')
+      expect(testFile.header['content-disposition']).equal('attachment; filename="test_file_01.txt"')
 
       const testLiteral = await getItemMetadataRoute(app, authToken, {
         id: lastToken.body.id,
         metadataKey: 'testLiteral',
       })
-      expect(testLiteral.body).equal('notAFile')
+
+      expect(testLiteral.text).equal('notAFile')
+      expect(testLiteral.header['content-type']).equal('text/plain; charset=utf-8')
 
       const testNone = await getItemMetadataRoute(app, authToken, {
         id: lastToken.body.id,
         metadataKey: 'testNone',
       })
-      expect(testNone.body).to.deep.equal({})
+
+      expect(testNone.text).to.deep.equal('')
+      expect(testNone.header['content-type']).equal('text/plain; charset=utf-8')
     })
 
     test('add and get item - multiple FILE', async function () {
@@ -303,7 +308,7 @@ describe('routes', function () {
     })
 
     test('add item - metadataKey too long (multibyte character)', async function () {
-      const metadataKey = '£'.repeat(METADATA_KEY_LENGTH)
+      const metadataKey = '£'.repeat(METADATA_KEY_LENGTH / 2 + 1)
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
       expect(runProcessResult.body.message).to.contain('too long')
