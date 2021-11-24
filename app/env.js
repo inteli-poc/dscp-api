@@ -22,6 +22,7 @@ const vars = envalid.cleanEnv(process.env, {
   LEGACY_METADATA_KEY: envalid.str({ default: '' }),
   METADATA_KEY_LENGTH: envalid.num({ default: 32 }),
   METADATA_VALUE_LITERAL_LENGTH: envalid.num({ default: 32 }),
+  MAX_METADATA_COUNT: envalid.num({ default: 16 }),
 })
 
 module.exports = {

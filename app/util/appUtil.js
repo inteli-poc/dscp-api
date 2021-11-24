@@ -15,6 +15,7 @@ const {
   IPFS_PORT,
   METADATA_KEY_LENGTH,
   METADATA_VALUE_LITERAL_LENGTH,
+  MAX_METADATA_COUNT,
 } = require('../env')
 const logger = require('../logger')
 
@@ -90,9 +91,13 @@ function formatHash(filestoreResponse) {
 }
 
 async function processMetadata(metadata, files) {
+  const metadataItems = Object.entries(metadata)
+  if (metadataItems.length > MAX_METADATA_COUNT)
+    throw new Error(`Metadata has too many items: ${metadataItems.length}. Max item count: ${MAX_METADATA_COUNT}`)
+
   return new Map(
     await Promise.all(
-      Object.entries(metadata).map(async ([key, value]) => {
+      metadataItems.map(async ([key, value]) => {
         const lengthInHex = new TextEncoder('hex').encode(key).length
         if (lengthInHex > METADATA_KEY_LENGTH)
           throw new Error(

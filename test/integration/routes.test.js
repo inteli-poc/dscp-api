@@ -28,6 +28,7 @@ const {
   LEGACY_METADATA_KEY,
   METADATA_KEY_LENGTH,
   METADATA_VALUE_LITERAL_LENGTH,
+  MAX_METADATA_COUNT,
 } = require('../../app/env')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -348,54 +349,17 @@ describe('routes', function () {
       expect(runProcessResult.status).to.equal(400)
     })
 
-    // test.only('add item - too many metadata items', async function () {
-    //   // const tooMany = {}
-    //   // for (let i = 0; i < 17; i++) {
-    //   //   tooMany[`${i}`] = { type: 'NONE' }
-    //   // }
-    //   // const outputs = [{ owner: USER_ALICE_TOKEN, metadata: tooMany }]
+    test('add item - too many metadata items', async function () {
+      const tooMany = {}
+      for (let i = 0; i < MAX_METADATA_COUNT + 1; i++) {
+        tooMany[`${i}`] = { type: 'NONE' }
+      }
+      const outputs = [{ owner: USER_ALICE_TOKEN, metadata: tooMany }]
 
-    //   const outputs = [
-    //     {
-    //       owner: USER_ALICE_TOKEN,
-    //       metadata: {
-    //         //testFile: { type: 'FILE', value: './test/data/test_file_01.txt' },
-    //         //testLiteral: { type: 'LITERAL', value: 'notAFile' },
-    //         10: { type: 'NONE' },
-    //         2: { type: 'NONE' },
-    //       },
-    //     },
-    //   ]
-    //   const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-    //   expect(runProcessResult.body).to.have.length(1)
-    //   expect(runProcessResult.status).to.equal(200)
-
-    //   const lastToken = await getLastTokenIdRoute(app, authToken)
-    //   expect(lastToken.body).to.have.property('id')
-
-    //   const getItemResult = await getItemRoute(app, authToken, lastToken.body)
-    //   expect(getItemResult.status).to.equal(200)
-    //   expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-    //   //expect(getItemResult.body.metadata).to.deep.equal(['testFile', 'testLiteral', 'testNone'])
-
-    //   const testFile = await getItemMetadataRoute(app, authToken, {
-    //     id: lastToken.body.id,
-    //     metadataKey: 'testFile',
-    //   })
-    //   expect(testFile.text.toString()).equal('This is the first test file...\n')
-
-    //   const testLiteral = await getItemMetadataRoute(app, authToken, {
-    //     id: lastToken.body.id,
-    //     metadataKey: 'testLiteral',
-    //   })
-    //   expect(testLiteral.body).equal('notAFile')
-
-    //   const testNone = await getItemMetadataRoute(app, authToken, {
-    //     id: lastToken.body.id,
-    //     metadataKey: 'testNone',
-    //   })
-    //   expect(testNone.body).to.deep.equal({})
-    // })
+      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.status).to.equal(400)
+    })
 
     test('get item - missing ID', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
