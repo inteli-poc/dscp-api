@@ -288,9 +288,9 @@ describe('routes', function () {
       const outputs = [
         { owner: USER_ALICE_TOKEN, metadata: { testFile1: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
-      const runProcessResult = await postRunProcessNoFileAttach(app, authToken, [], outputs)
 
-      expect(runProcessResult.body).to.have.property('message')
+      const runProcessResult = await postRunProcessNoFileAttach(app, authToken, [], outputs)
+      expect(runProcessResult.body.message).to.contain('no attached file')
       expect(runProcessResult.status).to.equal(400)
     })
 
@@ -298,8 +298,7 @@ describe('routes', function () {
       const metadataKey = 'a'.repeat(METADATA_KEY_LENGTH + 1)
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('too long')
       expect(runProcessResult.status).to.equal(400)
     })
 
@@ -307,29 +306,28 @@ describe('routes', function () {
       const metadataKey = '£'.repeat(METADATA_KEY_LENGTH)
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('too long')
       expect(runProcessResult.status).to.equal(400)
     })
 
     test('add item - invalid metadata type', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'INVALID', value: 'test' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('invalid type')
       expect(runProcessResult.status).to.equal(400)
     })
 
     test('add item - metadata FILE without value field', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'FILE' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('value')
       expect(runProcessResult.status).to.equal(400)
     })
 
     test('add item - metadata LITERAL without value field', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'LITERAL' } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('value')
       expect(runProcessResult.status).to.equal(400)
     })
 
@@ -337,15 +335,15 @@ describe('routes', function () {
       const literalValue = 'a'.repeat(METADATA_VALUE_LITERAL_LENGTH + 1)
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'LITERAL', value: literalValue } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('too long')
       expect(runProcessResult.status).to.equal(400)
     })
 
     test('add item - metadata LITERAL value too long (multibyte character)', async function () {
-      const literalValue = '£'.repeat(METADATA_VALUE_LITERAL_LENGTH)
+      const literalValue = '£'.repeat(METADATA_VALUE_LITERAL_LENGTH / 2 + 1)
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: { testKey: { type: 'LITERAL', value: literalValue } } }]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('too long')
       expect(runProcessResult.status).to.equal(400)
     })
 
@@ -357,7 +355,7 @@ describe('routes', function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadata: tooMany }]
 
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.property('message')
+      expect(runProcessResult.body.message).to.contain('too many')
       expect(runProcessResult.status).to.equal(400)
     })
 
@@ -372,7 +370,7 @@ describe('routes', function () {
     test('get item - invalid ID', async function () {
       const actualResult = await getItemRoute(app, authToken, { id: 0 })
       expect(actualResult.status).to.equal(400)
-      expect(actualResult.body).to.have.property('message')
+      expect(actualResult.body.message).to.contain('id')
     })
 
     test('get item metadata - direct add file', async function () {
@@ -439,7 +437,7 @@ describe('routes', function () {
     test('get invalid item metadata', async function () {
       const actualResult = await getItemMetadataRoute(app, authToken, { id: 0 })
 
-      expect(actualResult.status).to.equal(400)
+      expect(actualResult.body.message).to.contain('id')
       expect(actualResult.body).to.have.property('message')
     })
 
