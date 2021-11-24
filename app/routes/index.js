@@ -7,7 +7,8 @@ const {
   runProcess,
   processMetadata,
   getFile,
-  validateTokenIds,
+  validateInputIds,
+  validateTokenId,
   getReadableMetadataKeys,
   getItemMetadataSingle,
   hexToUtf8,
@@ -30,23 +31,24 @@ router.get('/last-token', async (req, res) => {
 })
 
 router.get('/item/:id', async (req, res) => {
+  const id = validateTokenId(req.params.id)
+
+  if (!id) {
+    logger.trace(`Invalid id: ${req.params.id}`)
+    res.status(400).json({ message: `Invalid id: ${req.params.id}` })
+    return
+  }
+
   try {
-    const id = req.params && parseInt(req.params.id, 10)
-    if (Number.isInteger(id) && id !== 0) {
-      const result = await getItem(id)
+    const result = await getItem(id)
 
-      result.metadata = getReadableMetadataKeys(result.metadata)
+    result.metadata = getReadableMetadataKeys(result.metadata)
 
-      if (result.id === id) {
-        res.status(200).json(result)
-      } else {
-        res.status(404).json({
-          message: `Id not found: ${id}`,
-        })
-      }
+    if (result.id === id) {
+      res.status(200).json(result)
     } else {
-      res.status(400).json({
-        message: `Invalid id: ${id}`,
+      res.status(404).json({
+        message: `Id not found: ${id}`,
       })
     }
   } catch (err) {
@@ -57,10 +59,12 @@ router.get('/item/:id', async (req, res) => {
   }
 })
 
-const getMetadataResponse = async (id, metadataKey, res) => {
-  if (!Number.isInteger(id) || id === 0) {
-    logger.trace(`Invalid id: ${id}`)
-    res.status(400).json({ message: `Invalid id: ${id}` })
+const getMetadataResponse = async (tokenId, metadataKey, res) => {
+  const id = validateTokenId(tokenId)
+
+  if (!id) {
+    logger.trace(`Invalid id: ${tokenId}`)
+    res.status(400).json({ message: `Invalid id: ${tokenId}` })
     return
   }
 
@@ -114,13 +118,11 @@ const getMetadataResponse = async (id, metadataKey, res) => {
 
 // legacy route, gets metadata with legacy key
 router.get('/item/:id/metadata', async (req, res) => {
-  const id = req.params && parseInt(req.params.id, 10)
-  getMetadataResponse(id, LEGACY_METADATA_KEY, res)
+  getMetadataResponse(req.params.id, LEGACY_METADATA_KEY, res)
 })
 
 router.get('/item/:id/metadata/:metadataKey', async (req, res) => {
-  const id = req.params.id && parseInt(req.params.id, 10)
-  getMetadataResponse(id, req.params.metadataKey, res)
+  getMetadataResponse(req.params.id, req.params.metadataKey, res)
 })
 
 router.post('/run-process', async (req, res) => {
@@ -149,7 +151,7 @@ router.post('/run-process', async (req, res) => {
         return
       }
 
-      const inputsValid = await validateTokenIds(request.inputs)
+      const inputsValid = await validateInputIds(request.inputs)
       if (!inputsValid) {
         logger.trace(`Some inputs were invalid`)
         res.status(400).json({ message: `Some inputs were invalid: ${JSON.stringify(request.inputs)}` })

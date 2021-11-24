@@ -100,9 +100,7 @@ async function processMetadata(metadata, files) {
       metadataItems.map(async ([key, value]) => {
         const lengthInHex = new TextEncoder('hex').encode(key).length
         if (lengthInHex > METADATA_KEY_LENGTH)
-          throw new Error(
-            `Key: ${key} is too long. Hex length of ${lengthInHex} bytes. Max length: ${METADATA_KEY_LENGTH}`
-          )
+          throw new Error(`Key: ${key} is too long: ${lengthInHex} bytes (hex). Max length: ${METADATA_KEY_LENGTH}`)
 
         const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
         if (typeof value !== 'object' || !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type)) {
@@ -112,38 +110,50 @@ async function processMetadata(metadata, files) {
             )}`
           )
         }
-        const keyAsUint8Array = utf8ToUint8Array(key, METADATA_KEY_LENGTH)
 
         switch (value.type) {
-          case 'LITERAL': {
-            const literalValue = value.value
-            if (!literalValue) throw new Error(`Literal metadata requires a value field`)
-            const lengthInHex = new TextEncoder('hex').encode(literalValue).length
-            if (lengthInHex > METADATA_VALUE_LITERAL_LENGTH)
-              throw new Error(
-                `${key}:${literalValue} is too long. Hex length of ${lengthInHex} bytes. Maximum LITERAL length is ${METADATA_VALUE_LITERAL_LENGTH}`
-              )
-            const valueAsUint8Array = utf8ToUint8Array(literalValue, METADATA_VALUE_LITERAL_LENGTH)
-            return [keyAsUint8Array, { Literal: valueAsUint8Array }]
-          }
-          case 'FILE': {
-            if (!value.value) throw new Error(`File metadata requires a value field`)
-
-            const filePath = value.value
-            const file = files[filePath]
-            if (!file) throw new Error(`Error no attached file found for ${filePath}`)
-
-            const filestoreResponse = await addFile(file)
-            return [keyAsUint8Array, { File: formatHash(filestoreResponse) }]
-          }
+          case 'LITERAL':
+            value = processLiteral(value)
+            break
+          case 'FILE':
+            value = await processFile(value, files)
+            break
           default:
-          case 'NONE': {
-            return [keyAsUint8Array, { None: null }]
-          }
+          case 'NONE':
+            value = { None: null }
+            break
         }
+
+        const keyAsUint8Array = utf8ToUint8Array(key, METADATA_KEY_LENGTH)
+        return [keyAsUint8Array, value]
       })
     )
   )
+}
+
+const processLiteral = (value) => {
+  const literalValue = value.value
+  if (!literalValue) throw new Error(`Literal metadata requires a value field`)
+
+  const lengthInHex = new TextEncoder('hex').encode(literalValue).length
+  if (lengthInHex > METADATA_VALUE_LITERAL_LENGTH)
+    throw new Error(
+      `${literalValue} is too long: ${lengthInHex} bytes (hex). Maximum length is ${METADATA_VALUE_LITERAL_LENGTH}`
+    )
+
+  const valueAsUint8Array = utf8ToUint8Array(literalValue, METADATA_VALUE_LITERAL_LENGTH)
+  return { Literal: valueAsUint8Array }
+}
+
+const processFile = async (value, files) => {
+  if (!value.value) throw new Error(`File metadata requires a value field`)
+
+  const filePath = value.value
+  const file = files[filePath]
+  if (!file) throw new Error(`Error no attached file found for ${filePath}`)
+
+  const filestoreResponse = await addFile(file)
+  return { File: formatHash(filestoreResponse) }
 }
 
 const utf8ToUint8Array = (str, len) => {
@@ -268,13 +278,26 @@ const getReadableMetadataKeys = (metadata) => {
   })
 }
 
-const validateTokenIds = async (ids) => {
+const validateInputIds = async (ids) => {
   return await ids.reduce(async (acc, inputId) => {
     const uptoNow = await acc
     if (!uptoNow || !inputId || !Number.isInteger(inputId)) return false
     const { id: echoId, children } = await getItem(inputId)
     return children === null && echoId === inputId
   }, Promise.resolve(true))
+}
+
+const validateTokenId = (tokenId) => {
+  let id
+  try {
+    id = parseInt(tokenId, 10)
+  } catch (err) {
+    return null
+  }
+
+  if (!Number.isInteger(id) || id === 0) return null
+
+  return id
 }
 
 module.exports = {
@@ -284,7 +307,8 @@ module.exports = {
   getLastTokenId,
   processMetadata,
   getFile,
-  validateTokenIds,
+  validateInputIds,
+  validateTokenId,
   getReadableMetadataKeys,
   hexToUtf8,
   utf8ToUint8Array,
