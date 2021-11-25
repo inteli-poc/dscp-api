@@ -7,11 +7,20 @@ const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
 
-const { API_HOST, API_PORT, USER_URI, IPFS_HOST, IPFS_PORT, METADATA_KEY_LENGTH } = require('../env')
+const {
+  API_HOST,
+  API_PORT,
+  USER_URI,
+  IPFS_HOST,
+  IPFS_PORT,
+  METADATA_KEY_LENGTH,
+  METADATA_VALUE_LITERAL_LENGTH,
+  MAX_METADATA_COUNT,
+} = require('../env')
 const logger = require('../logger')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
-const metadata = {
+const apiOptions = {
   provider,
   types: {
     Address: 'MultiAddress',
@@ -19,7 +28,7 @@ const metadata = {
     PeerId: '(Vec<u8>)',
     TokenId: 'u128',
     TokenMetadataKey: `[u8; ${METADATA_KEY_LENGTH}]`,
-    TokenMetadataValue: 'Hash',
+    TokenMetadataValue: 'MetadataValue',
     Token: {
       id: 'TokenId',
       owner: 'AccountId',
@@ -30,10 +39,17 @@ const metadata = {
       parents: 'Vec<TokenId>',
       children: 'Option<Vec<TokenId>>',
     },
+    MetadataValue: {
+      _enum: {
+        File: 'Hash',
+        Literal: `[u8; ${METADATA_VALUE_LITERAL_LENGTH}]`,
+        None: null,
+      },
+    },
   },
 }
 
-const api = new ApiPromise(metadata)
+const api = new ApiPromise(apiOptions)
 
 api.on('disconnected', () => {
   logger.warn(`Disconnected from substrate node at ${API_HOST}:${API_PORT}`)
@@ -75,19 +91,72 @@ function formatHash(filestoreResponse) {
 }
 
 async function processMetadata(metadata, files) {
-  return Object.fromEntries(
-    await Promise.all(
-      Object.entries(metadata).map(async ([key, filename]) => {
-        if (key.length > METADATA_KEY_LENGTH)
-          throw new Error(`Key: ${key} is too long. Maximum key length is ${METADATA_KEY_LENGTH}`)
+  const metadataItems = Object.entries(metadata)
+  if (metadataItems.length > MAX_METADATA_COUNT)
+    throw new Error(`Metadata has too many items: ${metadataItems.length}. Max item count: ${MAX_METADATA_COUNT}`)
 
-        const file = files[filename]
-        if (!file) throw new Error(`Error no attached file found for ${filename}`)
-        const filestoreResponse = await addFile(file)
-        return [key, formatHash(filestoreResponse)]
+  return new Map(
+    await Promise.all(
+      metadataItems.map(async ([key, value]) => {
+        const keyAsUint8Array = utf8ToUint8Array(key, METADATA_KEY_LENGTH)
+
+        const validMetadataValueTypes = Object.keys(apiOptions.types.MetadataValue._enum)
+        if (typeof value !== 'object' || !validMetadataValueTypes.some((type) => type.toUpperCase() === value.type)) {
+          throw new Error(
+            `Error invalid type in ${key}:${JSON.stringify(value)}. Must be one of ${validMetadataValueTypes.map((t) =>
+              t.toUpperCase()
+            )}`
+          )
+        }
+
+        switch (value.type) {
+          case 'LITERAL':
+            value = processLiteral(value)
+            break
+          case 'FILE':
+            value = await processFile(value, files)
+            break
+          default:
+          case 'NONE':
+            value = { None: null }
+            break
+        }
+
+        return [keyAsUint8Array, value]
       })
     )
   )
+}
+
+const processLiteral = (value) => {
+  const literalValue = value.value
+  if (!literalValue) throw new Error(`Literal metadata requires a value field`)
+
+  const valueAsUint8Array = utf8ToUint8Array(literalValue, METADATA_VALUE_LITERAL_LENGTH)
+  return { Literal: valueAsUint8Array }
+}
+
+const processFile = async (value, files) => {
+  if (!value.value) throw new Error(`File metadata requires a value field`)
+
+  const filePath = value.value
+  const file = files[filePath]
+  if (!file) throw new Error(`Error no attached file found for ${filePath}`)
+
+  const filestoreResponse = await addFile(file)
+  return { File: formatHash(filestoreResponse) }
+}
+
+const utf8ToUint8Array = (str, len) => {
+  const arr = new Uint8Array(len)
+  try {
+    arr.set(Buffer.from(str, 'utf8'))
+  } catch (err) {
+    if (err instanceof RangeError) {
+      throw new Error(`${str} is too long. Max length: ${len} bytes`)
+    } else throw err
+  }
+  return arr
 }
 
 const downloadFile = async (dirHash) => {
@@ -187,6 +256,18 @@ async function runProcess(inputs, outputs) {
   return new Error('An error occurred whilst adding an item.')
 }
 
+const getItemMetadataSingle = async (tokenId, metadataKey) => {
+  const { metadata, id } = await getItem(tokenId)
+  if (id !== tokenId) throw new Error(`Id not found: ${tokenId}`)
+
+  const metadataValue = metadata[utf8ToHex(metadataKey, METADATA_KEY_LENGTH)]
+
+  if (!metadataValue) {
+    throw new Error(`No metadata with key '${metadataKey}' for token with ID: ${tokenId}`)
+  }
+  return metadataValue
+}
+
 async function getItem(tokenId) {
   let response = {}
 
@@ -194,26 +275,35 @@ async function getItem(tokenId) {
     await api.isReady
     const item = await api.query.simpleNftModule.tokensById(tokenId)
 
-    // TODO replace...
-    response = JSON.parse(item)
+    response = item.toJSON()
   }
 
   return response
 }
 
-async function getMetadata(base64Hash) {
+async function getFile(base64Hash) {
   // strip 0x and parse to base58
   const base58Hash = bs58.encode(Buffer.from(`1220${base64Hash.slice(2)}`, 'hex'))
   return downloadFile(base58Hash)
 }
 
+const utf8ToHex = (str, len) => {
+  const buffer = Buffer.alloc(len)
+  buffer.write(str)
+  return `0x${buffer.toString('hex')}`
+}
+
+const hexToUtf8 = (str) => {
+  return Buffer.from(str.slice(2), 'hex').toString('utf8').replace(/\0/g, '') // remove padding
+}
+
 const getReadableMetadataKeys = (metadata) => {
   return Object.keys(metadata).map((key) => {
-    return Buffer.from(key.slice(2), 'hex').toString('utf8').replace(/\0/g, '') // keys are fixed length so remove padding
+    return hexToUtf8(key)
   })
 }
 
-const validateTokenIds = async (ids) => {
+const validateInputIds = async (ids) => {
   return await ids.reduce(async (acc, inputId) => {
     const uptoNow = await acc
     if (!uptoNow || !inputId || !Number.isInteger(inputId)) return false
@@ -222,15 +312,33 @@ const validateTokenIds = async (ids) => {
   }, Promise.resolve(true))
 }
 
+const validateTokenId = (tokenId) => {
+  let id
+  try {
+    id = parseInt(tokenId, 10)
+  } catch (err) {
+    logger.error(`Error parsing tokenId. Error was ${err.message || JSON.stringify(err)}`)
+    return null
+  }
+
+  if (!Number.isInteger(id) || id === 0) return null
+
+  return id
+}
+
 module.exports = {
   runProcess,
+  getItemMetadataSingle,
   getItem,
   getLastTokenId,
   processMetadata,
-  getMetadata,
-  getMembers,
-  validateTokenIds,
+  getFile,
+  validateInputIds,
+  validateTokenId,
   getReadableMetadataKeys,
+  hexToUtf8,
+  utf8ToUint8Array,
+  getMembers,
   containsInvalidMembershipOwners,
   membershipReducer,
 }

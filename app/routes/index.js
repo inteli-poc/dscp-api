@@ -6,15 +6,18 @@ const {
   getItem,
   runProcess,
   processMetadata,
-  getMetadata,
-  validateTokenIds,
+  getFile,
+  validateInputIds,
+  validateTokenId,
   getReadableMetadataKeys,
+  getItemMetadataSingle,
+  hexToUtf8,
   getMembers,
   containsInvalidMembershipOwners,
   membershipReducer,
 } = require('../util/appUtil')
 const logger = require('../logger')
-const { LEGACY_METADATA_KEY, METADATA_KEY_LENGTH } = require('../env')
+const { LEGACY_METADATA_KEY } = require('../env')
 
 const router = express.Router()
 
@@ -31,23 +34,24 @@ router.get('/last-token', async (req, res) => {
 })
 
 router.get('/item/:id', async (req, res) => {
+  const id = validateTokenId(req.params.id)
+
+  if (!id) {
+    logger.trace(`Invalid id: ${req.params.id}`)
+    res.status(400).json({ message: `Invalid id: ${req.params.id}` })
+    return
+  }
+
   try {
-    const id = req.params && parseInt(req.params.id, 10)
-    if (Number.isInteger(id) && id !== 0) {
-      const result = await getItem(id)
+    const result = await getItem(id)
 
-      result.metadata = getReadableMetadataKeys(result.metadata)
+    result.metadata = getReadableMetadataKeys(result.metadata)
 
-      if (result.id === id) {
-        res.status(200).json(result)
-      } else {
-        res.status(404).json({
-          message: `Id not found: ${id}`,
-        })
-      }
+    if (result.id === id) {
+      res.status(200).json(result)
     } else {
-      res.status(400).json({
-        message: `Invalid id: ${id}`,
+      res.status(404).json({
+        message: `Id not found: ${id}`,
       })
     }
   } catch (err) {
@@ -58,61 +62,72 @@ router.get('/item/:id', async (req, res) => {
   }
 })
 
-const getMetadataResponse = async (id, metadataKey, res) => {
-  if (Number.isInteger(id) && id !== 0) {
-    const { metadata, id: getId } = await getItem(id)
-    if (getId === id) {
-      try {
-        const buffer = Buffer.alloc(METADATA_KEY_LENGTH) // metadata keys are fixed length
-        buffer.write(metadataKey)
-        const metadataKeyHex = `0x${buffer.toString('hex')}`
-        const hash = metadata[metadataKeyHex]
-        if (!hash) {
-          res.status(404).json({ message: `No metadata with key '${metadataKey}' for token with ID: ${id}` })
-          return
-        }
-        const { file, filename } = await getMetadata(hash)
+const getMetadataResponse = async (tokenId, metadataKey, res) => {
+  const id = validateTokenId(tokenId)
 
-        await new Promise((resolve, reject) => {
-          res.status(200)
-          res.set({
-            immutable: true,
-            maxAge: 365 * 24 * 60 * 60 * 1000,
-            'Content-Disposition': `attachment; filename="${filename}"`,
-          })
-          file.pipe(res)
-          file.on('error', (err) => reject(err))
-          res.on('finish', () => resolve())
-        })
-        return
-      } catch (err) {
-        logger.warn(`Error sending metadata file. Error was ${err}`)
-        if (!res.headersSent) {
-          res.status(500).send(`Error fetching metadata file`)
-          return
-        }
-      }
-    } else {
-      res.status(404).json({
-        message: `Id not found: ${id}`,
-      })
+  if (!id) {
+    logger.trace(`Invalid id: ${tokenId}`)
+    res.status(400).json({ message: `Invalid id: ${tokenId}` })
+    return
+  }
+
+  let metadataValue
+  try {
+    metadataValue = await getItemMetadataSingle(id, metadataKey)
+  } catch (err) {
+    logger.trace(`Invalid metadata request: ${err.message}`)
+    res.status(404).json({ message: err.message })
+    return
+  }
+
+  if (metadataValue.file) {
+    let file
+    try {
+      file = await getFile(metadataValue.file)
+    } catch (err) {
+      logger.warn(`Error fetching metadata file: ${metadataValue.file}. Error was ${err}`)
+      res.status(500).send(`Error fetching metadata file: ${metadataValue.file}`)
       return
     }
+
+    await new Promise((resolve, reject) => {
+      res.status(200)
+      res.set({
+        immutable: true,
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        'Content-Disposition': `attachment; filename="${file.filename}"`,
+      })
+      file.file.pipe(res)
+      file.file.on('error', (err) => reject(err))
+      res.on('finish', () => resolve())
+    })
+    return
   }
-  res.status(400).json({
-    message: `Invalid id: ${id}`,
-  })
+
+  if (metadataValue.literal) {
+    res.set('content-type', 'text/plain')
+    res.status(200).send(hexToUtf8(metadataValue.literal))
+    return
+  }
+
+  if ('none' in metadataValue) {
+    res.set('content-type', 'text/plain')
+    res.status(200).send('')
+    return
+  }
+
+  logger.warn(`Error fetching metadata: ${metadataKey}:${metadataValue}`)
+  res.status(500).send(`Error fetching metadata`)
+  return
 }
 
 // legacy route, gets metadata with legacy key
 router.get('/item/:id/metadata', async (req, res) => {
-  const id = req.params && parseInt(req.params.id, 10)
-  getMetadataResponse(id, LEGACY_METADATA_KEY, res)
+  getMetadataResponse(req.params.id, LEGACY_METADATA_KEY, res)
 })
 
 router.get('/item/:id/metadata/:metadataKey', async (req, res) => {
-  const id = req.params.id && parseInt(req.params.id, 10)
-  getMetadataResponse(id, req.params.metadataKey, res)
+  getMetadataResponse(req.params.id, req.params.metadataKey, res)
 })
 
 router.get('/members', async (req, res) => {
@@ -159,7 +174,7 @@ router.post('/run-process', async (req, res) => {
         return
       }
 
-      const inputsValid = await validateTokenIds(request.inputs)
+      const inputsValid = await validateInputIds(request.inputs)
       if (!inputsValid) {
         logger.trace(`Some inputs were invalid`)
         res.status(400).json({ message: `Some inputs were invalid: ${JSON.stringify(request.inputs)}` })
@@ -170,7 +185,7 @@ router.post('/run-process', async (req, res) => {
         request.outputs.map(async (output) => {
           //catch legacy single metadataFile
           if (output.metadataFile) {
-            output.metadata = { [LEGACY_METADATA_KEY]: output.metadataFile }
+            output.metadata = { [LEGACY_METADATA_KEY]: { type: 'FILE', value: output.metadataFile } }
           }
           try {
             return {
@@ -178,11 +193,12 @@ router.post('/run-process', async (req, res) => {
               metadata: await processMetadata(output.metadata, files),
             }
           } catch (err) {
+            logger.trace(`Invalid metadata: ${err.message}`)
             res.status(400).json({ message: err.message })
+            return
           }
         })
       )
-
       const result = await runProcess(request.inputs, outputs)
 
       if (result) {
