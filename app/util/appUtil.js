@@ -194,6 +194,34 @@ async function getLastTokenId() {
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
+async function containsInvalidMembershipOwners(outputs) {
+  const membershipMembers = await getMembers()
+
+  const validOwners = outputs.reduce((acc, { owner }) => {
+    if (membershipMembers.includes(owner)) {
+      acc.push(owner)
+      return acc
+    }
+  }, [])
+
+  return !validOwners || validOwners.length === 0 || validOwners.length !== outputs.length
+}
+
+function membershipReducer(members) {
+  return members.reduce((acc, item) => {
+    acc.push({ address: item })
+    return acc
+  }, [])
+}
+
+async function getMembers() {
+  await api.isReady
+
+  const result = await api.query.membership.members()
+
+  return result
+}
+
 async function runProcess(inputs, outputs) {
   if (inputs && outputs) {
     await api.isReady
@@ -310,4 +338,7 @@ module.exports = {
   getReadableMetadataKeys,
   hexToUtf8,
   utf8ToUint8Array,
+  getMembers,
+  containsInvalidMembershipOwners,
+  membershipReducer,
 }

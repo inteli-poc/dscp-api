@@ -177,6 +177,21 @@ async function getLastTokenIdRoute(app, authToken) {
     })
 }
 
+async function getMembersRoute(app, authToken) {
+  return request(app)
+    .get('/members')
+    .set('Accept', 'application/json')
+    .set('Content-Type', 'application/json')
+    .set('Authorization', `Bearer ${authToken}`)
+    .then((response) => {
+      return response
+    })
+    .catch((err) => {
+      console.error(`getMembersErr ${err}`)
+      return err
+    })
+}
+
 module.exports = {
   healthCheck,
   getAuthTokenRoute,
@@ -188,4 +203,5 @@ module.exports = {
   getItemMetadataRoute,
   getItemMetadataRouteLegacy,
   getLastTokenIdRoute,
+  getMembersRoute,
 }

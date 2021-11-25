@@ -12,6 +12,9 @@ const {
   getReadableMetadataKeys,
   getItemMetadataSingle,
   hexToUtf8,
+  getMembers,
+  containsInvalidMembershipOwners,
+  membershipReducer,
 } = require('../util/appUtil')
 const logger = require('../logger')
 const { LEGACY_METADATA_KEY } = require('../env')
@@ -127,6 +130,20 @@ router.get('/item/:id/metadata/:metadataKey', async (req, res) => {
   getMetadataResponse(req.params.id, req.params.metadataKey, res)
 })
 
+router.get('/members', async (req, res) => {
+  try {
+    const members = await getMembers()
+    const membershipMembers = membershipReducer(members)
+
+    res.status(200).json(membershipMembers)
+  } catch (err) {
+    logger.error(`Error getting members. Error was ${err.message || JSON.stringify(err)}`)
+    if (!res.headersSent) {
+      res.status(500).send(`Error getting members`)
+    }
+  }
+})
+
 router.post('/run-process', async (req, res) => {
   const form = formidable({ multiples: true })
 
@@ -150,6 +167,10 @@ router.post('/run-process', async (req, res) => {
       if (!request || !request.inputs || !request.outputs) {
         logger.trace(`Request missing input and/or outputs`)
         res.status(400).json({ message: `Request missing input and/or outputs` })
+        return
+      } else if (request.outputs && (await containsInvalidMembershipOwners(request.outputs))) {
+        logger.trace(`Request contains invalid owners that are not members of the membership list`)
+        res.status(400).json({ message: `Request contains invalid owners that are not members of the membership list` })
         return
       }
 

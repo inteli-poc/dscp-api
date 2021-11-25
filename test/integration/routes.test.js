@@ -16,9 +16,13 @@ const {
   getLastTokenIdRoute,
   addFileRoute,
   addFileRouteLegacy,
+  getMembersRoute,
 } = require('../helper/routeHelper')
 const USER_ALICE_TOKEN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+const ALICE_STASH = '5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY'
 const USER_BOB_TOKEN = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty'
+const BOB_STASH = '5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc'
+const USER_CHARLIE_TOKEN = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
 const { assertItem } = require('../helper/appHelper')
 const { runProcess, utf8ToUint8Array } = require('../../app/util/appUtil')
 const {
@@ -588,6 +592,68 @@ describe('routes', function () {
       }
 
       assertItem(itemNew.body, expectedResult)
+    })
+
+    test('return membership members', async function () {
+      let expectedResult = [
+        { address: USER_BOB_TOKEN },
+        { address: ALICE_STASH },
+        { address: USER_ALICE_TOKEN },
+        { address: BOB_STASH },
+      ]
+
+      const res = await getMembersRoute(app, authToken)
+
+      expect(res.body).deep.equal(expectedResult)
+    })
+
+    test('run-process with invalid member', async function () {
+      let expectedResult = { message: 'Request contains invalid owners that are not members of the membership list' }
+
+      const actualResult = await postRunProcess(
+        app,
+        authToken,
+        [],
+        [
+          {
+            owner: USER_CHARLIE_TOKEN,
+            metadata: { testFile: './test/data/test_file_01.txt' },
+          },
+        ]
+      )
+
+      expect(actualResult.status).to.equal(400)
+      expect(actualResult.body).to.deep.equal(expectedResult)
+    })
+
+    test('run-process destroying one token, failure to create another with invalid member', async function () {
+      const lastToken = await getLastTokenIdRoute(app, authToken)
+      const lastTokenId = lastToken.body.id
+
+      let expectedResult = { message: 'Request contains invalid owners that are not members of the membership list' }
+
+      await postRunProcess(
+        app,
+        authToken,
+        [],
+        [
+          {
+            owner: USER_ALICE_TOKEN,
+            metadata: { testFile: './test/data/test_file_01.txt' },
+          },
+        ]
+      )
+
+      const outputs = [
+        {
+          owner: USER_CHARLIE_TOKEN,
+          metadata: { testFile: './test/data/test_file_04.txt' },
+        },
+      ]
+      const actualResult = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
+
+      expect(actualResult.status).to.equal(400)
+      expect(actualResult.body).to.deep.equal(expectedResult)
     })
   })
 })
