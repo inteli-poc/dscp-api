@@ -156,7 +156,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
           </BeanShellPreProcessor>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Alice" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Alice" enabled="false">
           <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
             <collectionProp name="HTTPFileArgs.files">
               <elementProp name="../data/test_file_01.txt" elementType="HTTPFileArg">
