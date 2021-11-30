@@ -6,11 +6,15 @@ jmeter 5.4.1 (latest version was used)\
 JMETER_HOME added to %PATH
 
 ## Run Tests
-The test is currently setup to use a very small default test file, but this can be replaced with a different sized file using an online generator, for example.
-Obtain a valid Authorisation token and add this to the request header.
+Create a file of a desired size (using an online generator, for example) and place the file within `./jmeter_tmp` directory.\
+Obtain a valid Authorization token and pass this to the `jmeter` cli command as a parameter value to `-JtestAuthToken=`.\
 Optionally, you can enable and run the Login Request to obtain this for you.
+
 ```
-jmeter -t ./test/jmeter/Test_Plan.jmx
+jmeter -t ./test/jmeter/Test_Plan.jmx -JtestFilePath={TEST_FILE_PATH} -JtestFilename={TEST_FILE_NAME} -JtestAuthToken={TEST_AUTH_TOKEN}
+
+# For example:
+jmeter -t ./test/jmeter/Test_Plan.jmx -JtestFilePath=./jmeter_tmp/test_file_01_1mb.txt -JtestFilename=test_file_01_1mb.txt -JtestAuthToken=
 ```
 
 ## Test Results

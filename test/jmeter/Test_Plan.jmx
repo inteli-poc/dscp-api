@@ -95,9 +95,9 @@
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Bob" enabled="true">
           <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
             <collectionProp name="HTTPFileArgs.files">
-              <elementProp name="../data/test_file_01.txt" elementType="HTTPFileArg">
-                <stringProp name="File.path">../data/test_file_01.txt</stringProp>
-                <stringProp name="File.paramname">test_file_01.txt</stringProp>
+              <elementProp name="${__P(testFilePath)}" elementType="HTTPFileArg">
+                <stringProp name="File.path">${__P(testFilePath)}</stringProp>
+                <stringProp name="File.paramname">${__P(testFilename)}</stringProp>
                 <stringProp name="File.mimetype">plain/text</stringProp>
               </elementProp>
             </collectionProp>
@@ -106,7 +106,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="request" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">true</boolProp>
-                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;test_file_01.txt&quot;}}}]}</stringProp>
+                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;${__P(testFilename)}&quot;}}}]}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
                 <stringProp name="Argument.name">request</stringProp>
@@ -141,7 +141,7 @@
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer </stringProp>
+                <stringProp name="Header.value">Bearer ${__P(testAuthToken)}</stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
@@ -156,12 +156,12 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
           </BeanShellPreProcessor>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Alice" enabled="false">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Alice" enabled="true">
           <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
             <collectionProp name="HTTPFileArgs.files">
-              <elementProp name="../data/test_file_01.txt" elementType="HTTPFileArg">
-                <stringProp name="File.path">../data/test_file_01.txt</stringProp>
-                <stringProp name="File.paramname">test_file_01.txt</stringProp>
+              <elementProp name="${__P(testFilePath)}" elementType="HTTPFileArg">
+                <stringProp name="File.path">${__P(testFilePath)}</stringProp>
+                <stringProp name="File.paramname">${__P(testFilename)}</stringProp>
                 <stringProp name="File.mimetype">plain/text</stringProp>
               </elementProp>
             </collectionProp>
@@ -170,7 +170,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
             <collectionProp name="Arguments.arguments">
               <elementProp name="request" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">true</boolProp>
-                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;test_file_01.txt&quot;}}}]}</stringProp>
+                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;${__P(testFilename)}&quot;}}}]}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
                 <stringProp name="Argument.name">request</stringProp>
@@ -205,7 +205,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer </stringProp>
+                <stringProp name="Header.value">Bearer ${__P(testAuthToken)}</stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
