@@ -10,7 +10,7 @@ The test is currently setup to use a very small default test file, but this can 
 Obtain a valid Authorisation token and add this to the request header.
 Optionally, you can enable and run the Login Request to obtain this for you.
 ```
-jmeter -t ./test/jmeter/Test\ Plan.jmx
+jmeter -t ./test/jmeter/Test_Plan.jmx
 ```
 
 ## Test Results
