@@ -184,9 +184,9 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Bob" enabled="true">
           <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
             <collectionProp name="HTTPFileArgs.files">
-              <elementProp name="/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt" elementType="HTTPFileArg">
-                <stringProp name="File.path">/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt</stringProp>
-                <stringProp name="File.paramname">/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt</stringProp>
+              <elementProp name="../data/test_file_01.txt" elementType="HTTPFileArg">
+                <stringProp name="File.path">../data/test_file_01.txt</stringProp>
+                <stringProp name="File.paramname">test_file_01.txt</stringProp>
                 <stringProp name="File.mimetype">plain/text</stringProp>
               </elementProp>
             </collectionProp>
@@ -195,7 +195,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
             <collectionProp name="Arguments.arguments">
               <elementProp name="request" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">true</boolProp>
-                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt&quot;}}}]}</stringProp>
+                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;test_file_01.txt&quot;}}}]}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
                 <stringProp name="Argument.name">request</stringProp>
@@ -245,12 +245,12 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
           </BeanShellPreProcessor>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Alice" enabled="false">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="RunProcess Request Alice" enabled="true">
           <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
             <collectionProp name="HTTPFileArgs.files">
-              <elementProp name="/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt" elementType="HTTPFileArg">
-                <stringProp name="File.path">/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt</stringProp>
-                <stringProp name="File.paramname">/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt</stringProp>
+              <elementProp name="../data/test_file_01.txt" elementType="HTTPFileArg">
+                <stringProp name="File.path">../data/test_file_01.txt</stringProp>
+                <stringProp name="File.paramname">test_file_01.txt</stringProp>
                 <stringProp name="File.mimetype">plain/text</stringProp>
               </elementProp>
             </collectionProp>
@@ -259,7 +259,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
             <collectionProp name="Arguments.arguments">
               <elementProp name="request" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">true</boolProp>
-                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;/Users/dmorton/Projects/Digital_Catapult/vitalam/vitalam-api/test/data/test_file_01.txt&quot;}}}]}</stringProp>
+                <stringProp name="Argument.value">{&quot;inputs&quot;:[],&quot;outputs&quot;:[{&quot;owner&quot;:&quot;5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty&quot;,&quot;metadata&quot;:{&quot;testFile&quot;:{&quot;type&quot;:&quot;FILE&quot;,&quot;value&quot;:&quot;test_file_01.txt&quot;}}}]}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
                 <stringProp name="Argument.name">request</stringProp>
@@ -389,7 +389,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
               <connectTime>true</connectTime>
             </value>
           </objProp>
-          <stringProp name="filename">1gb_1threads.txt</stringProp>
+          <stringProp name="filename"></stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
