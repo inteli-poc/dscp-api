@@ -6,6 +6,9 @@ jmeter 5.4.1 (latest version was used)\
 JMETER_HOME added to %PATH
 
 ## Run Tests
+The test is currently setup to use a very small default test file, but this can be replaced with a different sized file using an online generator, for example.
+Obtain a valid Authorisation token and add this to the request header.
+Optionally, you can enable and run the Login Request to obtain this for you.
 ```
 jmeter -t ./test/jmeter/Test\ Plan.jmx
 ```
