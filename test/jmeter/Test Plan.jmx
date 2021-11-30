@@ -141,7 +141,7 @@
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InVYd2NLMi1JNk9SU01uNEwyTXItYSJ9.eyJpc3MiOiJodHRwczovL3ZpdGFsYW0uZXUuYXV0aDAuY29tLyIsInN1YiI6IkdCMDVhdzF6TDdIOFJHdE14a1BQdU84UEhOZ1ZUYjhuQGNsaWVudHMiLCJhdWQiOiJ2aXRhbGFtLXRlc3QiLCJpYXQiOjE2MzgyMDUyNzcsImV4cCI6MTYzODI5MTY3NywiYXpwIjoiR0IwNWF3MXpMN0g4Ukd0TXhrUFB1TzhQSE5nVlRiOG4iLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.K76-9hohjRWRE_ToCE-VPhPkX8McSclb1AvYW1-EVAXCSF793Uqo465KPsk84xci3WTx0dwykiM4pOpjXafsJ2Oab_90C4IptAEx9KIrxKcq5QNFAiT8rYwjUhwVl7PN8khEOcEt37kJqZmF-MKGO-A4Wyw156MHearrO7cPHOgH-oP1iPR1uv78wlMiZ8IWzHjSIFmd_X6DOPP7BmCxOFhZyx6sY5a8CZsGyFSC-mNaqxMwKQN4nl9HEL-gg3iqTB0yqbR0_xDkRUK7l9Mluqs77K8rKFKaspIyPRWZ5aM1dRLTw2Bk6fMdgJlWr4Fiz8XZD8onGzKCxfHKU9wEQw</stringProp>
+                <stringProp name="Header.value">Bearer </stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
@@ -205,7 +205,7 @@ sampler.getHeaderManager().add(new Header(&quot;Authorization&quot;, &quot;Beare
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InVYd2NLMi1JNk9SU01uNEwyTXItYSJ9.eyJpc3MiOiJodHRwczovL3ZpdGFsYW0uZXUuYXV0aDAuY29tLyIsInN1YiI6IkdCMDVhdzF6TDdIOFJHdE14a1BQdU84UEhOZ1ZUYjhuQGNsaWVudHMiLCJhdWQiOiJ2aXRhbGFtLXRlc3QiLCJpYXQiOjE2MzgyMDUyNzcsImV4cCI6MTYzODI5MTY3NywiYXpwIjoiR0IwNWF3MXpMN0g4Ukd0TXhrUFB1TzhQSE5nVlRiOG4iLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.K76-9hohjRWRE_ToCE-VPhPkX8McSclb1AvYW1-EVAXCSF793Uqo465KPsk84xci3WTx0dwykiM4pOpjXafsJ2Oab_90C4IptAEx9KIrxKcq5QNFAiT8rYwjUhwVl7PN8khEOcEt37kJqZmF-MKGO-A4Wyw156MHearrO7cPHOgH-oP1iPR1uv78wlMiZ8IWzHjSIFmd_X6DOPP7BmCxOFhZyx6sY5a8CZsGyFSC-mNaqxMwKQN4nl9HEL-gg3iqTB0yqbR0_xDkRUK7l9Mluqs77K8rKFKaspIyPRWZ5aM1dRLTw2Bk6fMdgJlWr4Fiz8XZD8onGzKCxfHKU9wEQw</stringProp>
+                <stringProp name="Header.value">Bearer </stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
