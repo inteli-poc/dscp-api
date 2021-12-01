@@ -1,6 +1,6 @@
 {
   "name": "vitalam-api",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "VITALam API",
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
     "envalid": "^7.1.0",
     "express": "^4.17.1",
     "express-jwt": "^6.0.0",
+    "express-openapi": "^9.3.1",
     "form-data": "^4.0.0",
     "formidable": "^1.2.2",
     "install": "^0.13.0",
@@ -37,7 +38,8 @@
     "node-fetch": "^2.6.1",
     "pino": "^6.11.3",
     "pino-http": "^5.5.0",
-    "stream-json": "^1.7.2"
+    "stream-json": "^1.7.2",
+    "swagger-ui-express": "^4.2.0"
   },
   "devDependencies": {
     "chai": "^4.3.4",

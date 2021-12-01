@@ -6,15 +6,15 @@ services:
       - 4001:4001
       - 8080:8080
       - 5001:5001
-  vitalam-node:
-    image: ghcr.io/digicatapult/vitalam-node:latest-dev
-    ports:
-      - 30333:30333
-      - 9944:9944
-      - 9933:9933
-    environment:
-      - IDENTITY=dev
-      - WS=true
-      - RPC=true
-      - CORS=all
-    restart: on-failure
+#  vitalam-node:
+#    image: ghcr.io/digicatapult/vitalam-node:latest-dev
+#    ports:
+#      - 30333:30333
+#      - 9944:9944
+#      - 9933:9933
+#    environment:
+#      - IDENTITY=dev
+#      - WS=true
+#      - RPC=true
+#      - CORS=all
+#    restart: on-failure
