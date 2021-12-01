@@ -2,14 +2,11 @@ const express = require('express')
 const formidable = require('formidable')
 
 const {
-  getLastTokenId,
-  getItem,
   runProcess,
   processMetadata,
   getFile,
   validateInputIds,
   validateTokenId,
-  getReadableMetadataKeys,
   getItemMetadataSingle,
   hexToUtf8,
   getMembers,
@@ -20,47 +17,6 @@ const logger = require('../logger')
 const { LEGACY_METADATA_KEY } = require('../env')
 
 const router = express.Router()
-
-router.get('/last-token', async (req, res) => {
-  try {
-    const result = await getLastTokenId()
-    res.status(200).json({ id: result })
-  } catch (err) {
-    logger.error(`Error getting latest token. Error was ${err.message || JSON.stringify(err)}`)
-    if (!res.headersSent) {
-      res.status(500).send(`Error getting latest token`)
-    }
-  }
-})
-
-router.get('/item/:id', async (req, res) => {
-  const id = validateTokenId(req.params.id)
-
-  if (!id) {
-    logger.trace(`Invalid id: ${req.params.id}`)
-    res.status(400).json({ message: `Invalid id: ${req.params.id}` })
-    return
-  }
-
-  try {
-    const result = await getItem(id)
-
-    result.metadata = getReadableMetadataKeys(result.metadata)
-
-    if (result.id === id) {
-      res.status(200).json(result)
-    } else {
-      res.status(404).json({
-        message: `Id not found: ${id}`,
-      })
-    }
-  } catch (err) {
-    logger.error(`Error token. Error was ${err.message || JSON.stringify(err)}`)
-    if (!res.headersSent) {
-      res.status(500).send(`Error getting token`)
-    }
-  }
-})
 
 const getMetadataResponse = async (tokenId, metadataKey, res) => {
   const id = validateTokenId(tokenId)

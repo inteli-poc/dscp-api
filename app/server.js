@@ -28,8 +28,8 @@ async function createHttpServer() {
   })
 
   app.use('/health', health)
-  app.use('/auth', auth)
-  app.use('/', checkJwt, router)
+  // app.use('/auth', auth)
+  // app.use('/', checkJwt, router)
 
   initialize({
     app,
