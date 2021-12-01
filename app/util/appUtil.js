@@ -5,12 +5,11 @@ const bs58 = require('base-x')(BASE58)
 
 const fetch = require('node-fetch')
 const FormData = require('form-data')
-const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
+const { ApiPromise, WsProvider } = require('@polkadot/api')
 
 const {
   API_HOST,
   API_PORT,
-  USER_URI,
   IPFS_HOST,
   IPFS_PORT,
   METADATA_KEY_LENGTH,
@@ -188,15 +187,16 @@ const downloadFile = async (dirHash) => {
   return { file: fileRes.body, filename }
 }
 
-async function getLastTokenId() {
+async function findMembers() {
   await api.isReady
-  const lastTokenId = await api.query.simpleNftModule.lastToken()
 
-  return lastTokenId ? parseInt(lastTokenId, 10) : 0
+  const result = await api.query.membership.members()
+
+  return result
 }
 
 async function containsInvalidMembershipOwners(outputs) {
-  const membershipMembers = await getMembers()
+  const membershipMembers = await findMembers()
 
   const validOwners = outputs.reduce((acc, { owner }) => {
     if (membershipMembers.includes(owner)) {
@@ -214,50 +214,6 @@ function membershipReducer(members) {
     return acc
   }, [])
 }
-
-async function getMembers() {
-  await api.isReady
-
-  const result = await api.query.membership.members()
-
-  return result
-}
-
-// async function runProcess(inputs, outputs) {
-//   if (inputs && outputs) {
-//     await api.isReady
-//     const keyring = new Keyring({ type: 'sr25519' })
-//     const alice = keyring.addFromUri(USER_URI)
-//
-//     // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
-//     const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
-//     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
-//     return new Promise((resolve) => {
-//       let unsub = null
-//       api.tx.simpleNftModule
-//         .runProcess(inputs, outputsAsPair)
-//         .signAndSend(alice, (result) => {
-//           logger.debug('result.status %s', JSON.stringify(result.status))
-//           logger.debug('result.status.isInBlock', result.status.isInBlock)
-//           if (result.status.isInBlock) {
-//             const tokens = result.events
-//               .filter(({ event: { method } }) => method === 'Minted')
-//               .map(({ event: { data } }) => data[0].toNumber())
-//
-//             console.log('TOKENS', tokens)
-//
-//             unsub()
-//             resolve(tokens)
-//           }
-//         })
-//         .then((res) => {
-//           unsub = res
-//         })
-//     })
-//   }
-//
-//   return new Error('An error occurred whilst adding an item.')
-// }
 
 const getItemMetadataSingle = async (tokenId, metadataKey) => {
   const { metadata, id } = await getItem(tokenId)
@@ -330,9 +286,9 @@ const validateTokenId = (tokenId) => {
 }
 
 module.exports = {
+  findMembers,
   getItemMetadataSingle,
   getItem,
-  getLastTokenId,
   processMetadata,
   getFile,
   validateInputIds,
@@ -340,7 +296,6 @@ module.exports = {
   getReadableMetadataKeys,
   hexToUtf8,
   utf8ToUint8Array,
-  getMembers,
   containsInvalidMembershipOwners,
   membershipReducer,
 }

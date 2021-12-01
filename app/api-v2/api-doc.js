@@ -27,16 +27,6 @@ const apiDoc = {
       },
     },
     schemas: {
-      LastToken: {
-        type: 'object',
-        properties: {
-          id: {
-            description: 'id of the token',
-            type: 'number',
-          },
-        },
-        required: ['id'],
-      },
       Item: {
         type: 'object',
         properties: {
@@ -74,6 +64,26 @@ const apiDoc = {
           },
         },
         required: ['id', 'owner', 'creator', 'created_at', 'destroyed', 'parents', 'children', 'metadata'],
+      },
+      LastToken: {
+        type: 'object',
+        properties: {
+          id: {
+            description: 'id of the token',
+            type: 'number',
+          },
+        },
+        required: ['id'],
+      },
+      Member: {
+        type: 'object',
+        properties: {
+          address: {
+            description: 'token of the member',
+            type: 'string',
+          },
+        },
+        required: ['id'],
       },
       RunProcess: {
         type: 'object',

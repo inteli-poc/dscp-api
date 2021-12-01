@@ -35,13 +35,6 @@ const apiOptions = {
 }
 const api = new ApiPromise(apiOptions)
 
-async function getLastTokenId() {
-  await api.isReady
-  const lastTokenId = await api.query.simpleNftModule.lastToken()
-
-  return lastTokenId ? parseInt(lastTokenId, 10) : 0
-}
-
 async function getItemById(tokenId) {
   let response = {}
 
@@ -55,6 +48,21 @@ async function getItemById(tokenId) {
   response.metadata = getReadableMetadataKeys(response.metadata)
 
   return response
+}
+
+async function getLastTokenId() {
+  await api.isReady
+  const lastTokenId = await api.query.simpleNftModule.lastToken()
+
+  return lastTokenId ? parseInt(lastTokenId, 10) : 0
+}
+
+async function getMembers() {
+  await api.isReady
+
+  const result = await api.query.membership.members()
+
+  return result
 }
 
 async function runProcess(inputs, outputs) {
@@ -96,5 +104,6 @@ async function runProcess(inputs, outputs) {
 module.exports = {
   getItemById,
   getLastTokenId,
+  getMembers,
   runProcess,
 }
