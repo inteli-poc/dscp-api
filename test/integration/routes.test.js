@@ -38,6 +38,8 @@ const {
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
 
+const { API_VERSION } = require('../../app/env')
+
 describe('routes', function () {
   before(async () => {
     nock.disableNetConnect()
@@ -57,7 +59,7 @@ describe('routes', function () {
     })
 
     test('health check', async function () {
-      const expectedResult = { status: 'ok' }
+      const expectedResult = { status: 'ok', version: API_VERSION }
 
       const actualResult = await healthCheck(app)
       expect(actualResult.status).to.equal(200)
