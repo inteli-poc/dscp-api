@@ -1,6 +1,8 @@
-const { ApiPromise, WsProvider } = require('@polkadot/api')
+const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
 const { METADATA_KEY_LENGTH, METADATA_VALUE_LITERAL_LENGTH, API_HOST, API_PORT } = require('../../env')
 const { getReadableMetadataKeys } = require('../../util/appUtil')
+const logger = require('../../logger')
+const { USER_URI } = require('../../env')
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
 const apiOptions = {
   provider,
@@ -55,7 +57,44 @@ async function getItemById(tokenId) {
   return response
 }
 
+async function runProcess(inputs, outputs) {
+  if (inputs && outputs) {
+    await api.isReady
+    const keyring = new Keyring({ type: 'sr25519' })
+    const alice = keyring.addFromUri(USER_URI)
+
+    // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
+    const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
+    logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
+    return new Promise((resolve) => {
+      let unsub = null
+      api.tx.simpleNftModule
+        .runProcess(inputs, outputsAsPair)
+        .signAndSend(alice, (result) => {
+          logger.debug('result.status %s', JSON.stringify(result.status))
+          logger.debug('result.status.isInBlock', result.status.isInBlock)
+          if (result.status.isInBlock) {
+            const tokens = result.events
+              .filter(({ event: { method } }) => method === 'Minted')
+              .map(({ event: { data } }) => data[0].toNumber())
+
+            console.log('TOKENS', tokens)
+
+            unsub()
+            resolve(tokens)
+          }
+        })
+        .then((res) => {
+          unsub = res
+        })
+    })
+  }
+
+  return new Error('An error occurred whilst adding an item.')
+}
+
 module.exports = {
-  getLastTokenId,
   getItemById,
+  getLastTokenId,
+  runProcess,
 }

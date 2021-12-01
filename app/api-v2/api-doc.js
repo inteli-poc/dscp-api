@@ -75,6 +75,20 @@ const apiDoc = {
         },
         required: ['id', 'owner', 'creator', 'created_at', 'destroyed', 'parents', 'children', 'metadata'],
       },
+      RunProcess: {
+        type: 'object',
+        properties: {
+          inputs: {
+            description: 'array of token ids to be consumed by the running process',
+            type: 'array',
+          },
+          outputs: {
+            description: 'array of objects that describe the tokens to be consumed by running this process',
+            type: 'array',
+          },
+        },
+        required: ['inputs', 'outputs'],
+      },
     },
   },
   paths: {},

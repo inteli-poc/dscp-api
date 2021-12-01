@@ -39,7 +39,7 @@ module.exports = function (apiService) {
         },
       },
     },
-    tags: ['token'],
+    tags: ['system'],
   }
 
   return doc
