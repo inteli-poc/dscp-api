@@ -6,8 +6,6 @@ const { LEGACY_METADATA_KEY } = require('../../env')
 module.exports = function (apiService) {
   const doc = {
     POST: async function (req, res) {
-      console.log('V2 /system/run-process')
-
       const form = formidable({ multiples: true })
 
       form.parse(req, async (formError, fields, files) => {

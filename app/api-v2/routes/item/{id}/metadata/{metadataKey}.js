@@ -3,8 +3,6 @@ const { getMetadataResponse } = require('../../../../../util/appUtil')
 module.exports = function () {
   const doc = {
     GET: async function (req, res) {
-      console.log('V2 /item/{id}/metadata/{metadataKey}')
-
       return getMetadataResponse(req.params.id, req.params.metadataKey, res)
     },
   }

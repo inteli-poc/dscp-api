@@ -4,8 +4,6 @@ const { LEGACY_METADATA_KEY } = require('../../../../env')
 module.exports = function () {
   const doc = {
     GET: async function (req, res) {
-      console.log('V2 /item/{id}/metadata')
-
       return getMetadataResponse(req.params.id, LEGACY_METADATA_KEY, res)
     },
   }

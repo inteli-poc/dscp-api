@@ -3,11 +3,6 @@ const logger = require('../../logger')
 module.exports = function (apiService) {
   const doc = {
     GET: async function (req, res) {
-      console.log('V2 /system/last-token')
-
-      console.log('V2 LAST TOKEN called req.params', req.params)
-      console.log('V2 LAST TOKEN called req.body', req.body)
-
       try {
         const result = await apiService.findLastTokenId()
         res.status(200).json({ id: result })
@@ -54,7 +49,6 @@ module.exports = function (apiService) {
         },
       },
     },
-
     tags: ['system'],
   }
 

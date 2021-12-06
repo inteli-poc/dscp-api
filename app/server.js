@@ -14,6 +14,7 @@ const v2ApiService = require('./api-v2/services/apiService')
 const { API_VERSION } = require('./env')
 
 async function createHttpServer() {
+  const requestLogger = pinoHttp({ logger })
   const app = express()
 
   app.use(cors())
@@ -26,6 +27,10 @@ async function createHttpServer() {
   })
 
   app.use((req, res, next) => {
+    if (req.path !== '/health') {
+      requestLogger(req, res)
+    }
+
     if (req.path !== `/${API_MAJOR_VERSION}/auth`) {
         return checkJwt(req, res, next)
     }

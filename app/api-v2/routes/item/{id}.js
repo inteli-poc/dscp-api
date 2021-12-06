@@ -5,10 +5,7 @@ const { getReadableMetadataKeys } = require('../../../util/appUtil')
 module.exports = function (apiService) {
   const doc = {
     GET: async function (req, res) {
-      console.log('V2 /item/{id}', req.params.id)
-
       const id = validateTokenId(req.params.id)
-      console.log('V2 /item/{id} id', id)
 
       if (!id) {
         logger.trace(`Invalid id: ${req.params.id}`)
@@ -20,9 +17,6 @@ module.exports = function (apiService) {
         const result = await apiService.findItemById(id)
 
         result.metadata = getReadableMetadataKeys(result.metadata)
-
-        console.log('V2 /item/{id} result', result)
-        console.log('V2 /item/{id} id', id)
 
         if (result.id === id) {
           res.status(200).json(result)
