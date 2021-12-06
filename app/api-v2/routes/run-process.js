@@ -86,21 +86,6 @@ module.exports = function (apiService) {
         name: 'request',
         allowEmptyValue: true,
       },
-        // custom
-      // {
-      //   description: 'Inputs to be created within the system',
-      //   in: 'body',
-      //   required: true,
-      //   name: 'inputs',
-      //   allowEmptyValue: true,
-      // },
-      // {
-      //   description: 'Outputs to be returned by the system',
-      //   in: 'body',
-      //   required: true,
-      //   name: 'outputs',
-      //   allowEmptyValue: true,
-      // },
     ],
     responses: {
       200: {
