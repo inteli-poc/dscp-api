@@ -326,8 +326,6 @@ const validateTokenId = (tokenId) => {
 }
 
 const getMetadataResponse = async (tokenId, metadataKey, res) => {
-  console.log('getMetadataResponse called', tokenId, metadataKey, res.body)
-
   const id = validateTokenId(tokenId)
 
   if (!id) {

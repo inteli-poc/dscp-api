@@ -139,8 +139,6 @@ async function getItemMetadataRoute(app, authToken, { id, metadataKey }) {
     .set('Content-Type', 'application/octet-stream')
     .set('Authorization', `Bearer ${authToken}`)
     .then((response) => {
-      console.log('getItemMetadataRoute', response.body)
-
       return response
     })
     .catch((err) => {
@@ -156,8 +154,6 @@ async function getItemMetadataRouteLegacy(app, authToken, { id }) {
     .set('Content-Type', 'application/octet-stream')
     .set('Authorization', `Bearer ${authToken}`)
     .then((response) => {
-      console.log('getItemMetadataRouteLegacy', response.body)
-
       return response
     })
     .catch((err) => {
