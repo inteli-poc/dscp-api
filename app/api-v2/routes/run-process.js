@@ -89,7 +89,7 @@ module.exports = function (apiService) {
     ],
     responses: {
       200: {
-        description: 'Return tokens consumed and those to be created by this running process',
+        description: 'Return the ids of tokens created by this running process',
         content: {
           'application/json': {
             schema: {

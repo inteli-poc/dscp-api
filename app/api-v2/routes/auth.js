@@ -39,14 +39,14 @@ module.exports = function () {
     summary: 'Post auth',
     parameters: [
       {
-        description: 'Client Id of the ',
+        description: 'Client Id of the request',
         in: 'body',
         required: true,
         name: 'client_id',
         allowEmptyValue: true,
       },
       {
-        description: 'Client Secret of the ',
+        description: 'Client Secret of the request',
         in: 'body',
         required: true,
         name: 'client_secret',

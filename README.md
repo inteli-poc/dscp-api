@@ -69,6 +69,9 @@ The following environment variables are used by `vitalam-api` and can be configu
 | METADATA_KEY_LENGTH           |    N     |  `32`   | Fixed length of metadata keys                                                                                        |
 | METADATA_VALUE_LITERAL_LENGTH |    N     |  `32`   | Fixed length of metadata LITERAL values                                                                              |
 | MAX_METADATA_COUNT            |    N     |  `16`   | Maximum number of metadata items allowed per token                                                                   |
+| API_VERSION                   |    N     |    -    | API version                                                                                                          |
+| API_MAJOR_VERSION             |    N     |    -    | API major version                                                                                                    |
+| FILE_UPLOAD_MAX_SIZE          |    N     |    -    | The Maximum file upload size (bytes)                                                                                 |
 
 ## Running the API
 

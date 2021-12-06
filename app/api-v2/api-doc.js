@@ -75,8 +75,8 @@ const apiDoc = {
             description: 'children of the item',
             type: 'array',
           },
-          metadata: {
-            description: 'metadata of the item',
+          metadata_keys: {
+            description: 'metadata keys of the item',
             type: 'array',
           },
         },
