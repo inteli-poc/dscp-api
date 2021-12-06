@@ -5,9 +5,6 @@ const logger = require('../../logger')
 module.exports = function () {
   const doc = {
     POST: async function (req, res) {
-      console.log('V2 /auth')
-      console.log('AUTH HELLO', req.body, req.body.client_id, req.body.client_secret)
-
       if (!req.body || !req.body.client_id || !req.body.client_secret) {
         res.status(400).send({ error: '"client_id" and "client_secret" fields required' })
       }
@@ -24,12 +21,9 @@ module.exports = function () {
           }),
         })
         const data = await response.json()
-        console.log('AUTH HELLO STATUS', response.status)
-        console.log('AUTH HELLO DATA', data)
 
         if (response.status === 200) {
           res.status(200).json(data)
-          return
         } else {
           logger.error(`Auth0 error: ${data.error_description}`)
           res.status(response.status).send(data)
