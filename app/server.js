@@ -32,10 +32,9 @@ async function createHttpServer() {
     }
 
     if (
-      req.path !== `/${API_MAJOR_VERSION}/api-docs` &&
-      req.path !== `/${API_MAJOR_VERSION}/swagger` &&
-      !req.path.includes(`/${API_MAJOR_VERSION}/swagger`) &&
-      req.path !== `/${API_MAJOR_VERSION}/auth`
+      !req.path.match(`/(${API_MAJOR_VERSION}/api-docs)`) &&
+      !req.path.match(`/(${API_MAJOR_VERSION}/swagger)`) &&
+      !req.path.match(`/(${API_MAJOR_VERSION}/auth)`)
     ) {
       return checkJwt(req, res, next)
     }
