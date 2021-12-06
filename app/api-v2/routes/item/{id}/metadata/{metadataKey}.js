@@ -11,7 +11,7 @@ module.exports = function () {
     summary: 'Get metadata',
     parameters: [
       {
-        description: 'Id of the item',
+        description: 'Id of the item to get metadata for',
         in: 'path',
         required: true,
         name: 'id',
