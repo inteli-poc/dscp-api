@@ -21,7 +21,7 @@ async function healthCheck(app) {
 
 async function getAuthTokenRoute(app) {
   return request(app)
-    .post(`/${API_MAJOR_VERSION}/auth`) // .post(`/auth`)
+    .post(`/${API_MAJOR_VERSION}/auth`)
     .send({ client_id: 'test', client_secret: 'test' })
     .then((res) => res)
     .catch((err) => console.error('getTokenErr', err))
@@ -57,7 +57,7 @@ async function addFileRouteLegacy(file) {
 
 async function postRunProcess(app, authToken, inputs, outputs) {
   let req = request(app)
-    .post(`/${API_MAJOR_VERSION}/run-process`) // .post(`/run-process`)
+    .post(`/${API_MAJOR_VERSION}/run-process`)
     .set('Accept', 'application/json')
     .set('Content-Type', 'application/json')
     .set('Authorization', `Bearer ${authToken}`)
@@ -85,7 +85,6 @@ async function postRunProcess(app, authToken, inputs, outputs) {
 
   return req
     .then((response) => {
-      console.log('**** response.status', response.status)
       return response
     })
     .catch((err) => {
@@ -96,7 +95,7 @@ async function postRunProcess(app, authToken, inputs, outputs) {
 
 async function postRunProcessNoFileAttach(app, authToken, inputs, outputs) {
   let req = request(app)
-    .post(`/${API_MAJOR_VERSION}/run-process`) // .post(`/run_process`)
+    .post(`/${API_MAJOR_VERSION}/run-process`)
     .set('Accept', 'application/json')
     .set('Content-Type', 'application/json')
     .set('Authorization', `Bearer ${authToken}`)
@@ -120,7 +119,7 @@ async function postRunProcessNoFileAttach(app, authToken, inputs, outputs) {
 
 async function getItemRoute(app, authToken, { id }) {
   return request(app)
-    .get(`/${API_MAJOR_VERSION}/item/${id}`) // .get(`/item/${id}`)
+    .get(`/${API_MAJOR_VERSION}/item/${id}`)
     .set('Accept', 'application/json')
     .set('Content-Type', 'application/json')
     .set('Authorization', `Bearer ${authToken}`)
@@ -135,7 +134,7 @@ async function getItemRoute(app, authToken, { id }) {
 
 async function getItemMetadataRoute(app, authToken, { id, metadataKey }) {
   return request(app)
-    .get(`/${API_MAJOR_VERSION}/item/${id}/metadata/${metadataKey}`) // .get(`/item/${id}/metadata/${metadataKey}`)
+    .get(`/${API_MAJOR_VERSION}/item/${id}/metadata/${metadataKey}`)
     .set('Accept', 'application/octet-stream')
     .set('Content-Type', 'application/octet-stream')
     .set('Authorization', `Bearer ${authToken}`)
@@ -152,7 +151,7 @@ async function getItemMetadataRoute(app, authToken, { id, metadataKey }) {
 
 async function getItemMetadataRouteLegacy(app, authToken, { id }) {
   return request(app)
-    .get(`/${API_MAJOR_VERSION}/item/${id}/metadata`) // .get(`/item/${id}/metadata`)
+    .get(`/${API_MAJOR_VERSION}/item/${id}/metadata`)
     .set('Accept', 'application/octet-stream')
     .set('Content-Type', 'application/octet-stream')
     .set('Authorization', `Bearer ${authToken}`)
@@ -184,7 +183,7 @@ async function getLastTokenIdRoute(app, authToken) {
 
 async function getMembersRoute(app, authToken) {
   return request(app)
-    .get(`/${API_MAJOR_VERSION}/members`) // .get(`/members`)
+    .get(`/${API_MAJOR_VERSION}/members`)
     .set('Accept', 'application/json')
     .set('Content-Type', 'application/json')
     .set('Authorization', `Bearer ${authToken}`)

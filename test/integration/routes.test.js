@@ -139,7 +139,6 @@ describe('routes', function () {
 
     test('add and get item - single metadataFile (legacy)', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadataFile: './test/data/test_file_01.txt' }]
-      console.log('authToken', authToken)
 
       context.response = await postRunProcess(app, authToken, [], outputs)
       expect(context.response.body).to.have.length(1)
@@ -147,8 +146,6 @@ describe('routes', function () {
 
       const lastToken = await getLastTokenIdRoute(app, authToken)
       expect(lastToken.body).to.have.property('id')
-
-      console.log('lastToken.body', lastToken.body)
 
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
@@ -161,7 +158,6 @@ describe('routes', function () {
         { owner: USER_ALICE_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      console.log('runProcessResult', runProcessResult.status, runProcessResult.body)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
       const lastToken = await getLastTokenIdRoute(app, authToken)
@@ -512,7 +508,6 @@ describe('routes', function () {
     test('run-process creating one token', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
       const lastTokenId = lastToken.body.id
-      console.log('lastTokenId', lastToken.body)
 
       let expectedResult = [lastTokenId + 1]
 
@@ -520,13 +515,11 @@ describe('routes', function () {
         { owner: USER_BOB_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
       const actualResult = await postRunProcess(app, authToken, [], outputs)
-      console.log('actualResult', actualResult.body)
 
       expect(actualResult.status).to.equal(200)
       expect(actualResult.body).to.deep.equal(expectedResult)
 
       const item = await getItemRoute(app, authToken, { id: lastTokenId + 1 })
-      console.log('ITEM', item.body)
 
       expectedResult = {
         id: lastTokenId + 1,

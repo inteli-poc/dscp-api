@@ -4,8 +4,6 @@ const { membershipReducer } = require('../../util/appUtil')
 module.exports = function (apiService) {
   const doc = {
     GET: async function (req, res) {
-      console.log('V2 /members')
-
       try {
         const members = await apiService.findMembers()
         const membershipMembers = membershipReducer(members)
