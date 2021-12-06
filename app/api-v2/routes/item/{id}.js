@@ -16,7 +16,7 @@ module.exports = function (apiService) {
       try {
         const result = await apiService.findItemById(id)
 
-        result.metadata = getReadableMetadataKeys(result.metadata)
+        result.metadata_keys = getReadableMetadataKeys(result.metadata)
 
         if (result.id === id) {
           res.status(200).json(result)
