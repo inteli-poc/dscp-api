@@ -135,7 +135,7 @@ Gets the item identified by `id`. Item `id`s are returned by [POST /run-process]
 
 ### GET /item/:id/metadata/:metadataKey
 
-Gets the metadata value matching the `metadataKey` for the the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). If the value is a string, it will be returned with a `Content-Type` of `text/plain`. If the value is a file, it will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
+Gets the metadata value matching the `metadataKey` for the item identified by `id`. Item `id`s are returned by [POST /run-process](#post-/run-process). If the value is a string, it will be returned with a `Content-Type` of `text/plain`. If the value is a file, it will be returned with a `Content-Type` of `application/octet-stream`. The original `filename` is returned in the `Content-Disposition` header.
 
 ### POST /run-process
 

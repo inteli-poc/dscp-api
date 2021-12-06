@@ -1,11 +1,13 @@
-const logger = require('../../logger')
 const formidable = require('formidable')
+const logger = require('../../logger')
 const { containsInvalidMembershipOwners, validateInputIds, processMetadata } = require('../../util/appUtil')
 const { LEGACY_METADATA_KEY } = require('../../env')
 
 module.exports = function (apiService) {
   const doc = {
-    GET: async function (req, res) {
+    POST: async function (req, res) {
+      console.log('V2 /system/run-process')
+
       const form = formidable({ multiples: true })
 
       form.parse(req, async (formError, fields, files) => {
@@ -13,7 +15,7 @@ module.exports = function (apiService) {
           if (formError) {
             logger.error(`Error processing form ${formError}`)
             res.status(500).json({ message: 'Unexpected error processing input' })
-            return
+            // return
           }
 
           let request = null
@@ -22,26 +24,26 @@ module.exports = function (apiService) {
           } catch (parseError) {
             logger.trace(`Invalid user input ${parseError}`)
             res.status(400).json({ message: `Invalid user input ${parseError}` })
-            return
+            // return
           }
 
           if (!request || !request.inputs || !request.outputs) {
             logger.trace(`Request missing input and/or outputs`)
             res.status(400).json({ message: `Request missing input and/or outputs` })
-            return
+            // return
           } else if (request.outputs && (await containsInvalidMembershipOwners(request.outputs))) {
             logger.trace(`Request contains invalid owners that are not members of the membership list`)
             res
               .status(400)
               .json({ message: `Request contains invalid owners that are not members of the membership list` })
-            return
+            // return
           }
 
           const inputsValid = await validateInputIds(request.inputs)
           if (!inputsValid) {
             logger.trace(`Some inputs were invalid`)
             res.status(400).json({ message: `Some inputs were invalid: ${JSON.stringify(request.inputs)}` })
-            return
+            // return
           }
 
           const outputs = await Promise.all(
@@ -58,7 +60,7 @@ module.exports = function (apiService) {
               } catch (err) {
                 logger.trace(`Invalid metadata: ${err.message}`)
                 res.status(400).json({ message: err.message })
-                return
+                // return
               }
             })
           )
@@ -82,15 +84,42 @@ module.exports = function (apiService) {
     },
   }
 
-  doc.GET.apiDoc = {
+  doc.POST.apiDoc = {
     summary: 'Governs the creation and destruction of all tokens in the system',
+    parameters: [
+      {
+        description: 'Inputs to be created within the system',
+        in: 'body',
+        required: true,
+        name: 'request',
+        allowEmptyValue: true,
+      },
+        // custom
+      // {
+      //   description: 'Inputs to be created within the system',
+      //   in: 'body',
+      //   required: true,
+      //   name: 'inputs',
+      //   allowEmptyValue: true,
+      // },
+      // {
+      //   description: 'Outputs to be returned by the system',
+      //   in: 'body',
+      //   required: true,
+      //   name: 'outputs',
+      //   allowEmptyValue: true,
+      // },
+    ],
     responses: {
       200: {
         description: 'Return tokens consumed and those to be created by this running process',
         content: {
           'application/json': {
             schema: {
-              $ref: '#/components/schemas/RunProcess',
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/RunProcess',
+              },
             },
           },
         },

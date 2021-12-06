@@ -33,12 +33,11 @@ const {
   METADATA_KEY_LENGTH,
   METADATA_VALUE_LITERAL_LENGTH,
   MAX_METADATA_COUNT,
+  API_VERSION,
 } = require('../../app/env')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
-
-const { API_VERSION } = require('../../app/env')
 
 describe('routes', function () {
   before(async () => {
@@ -80,7 +79,7 @@ describe('routes', function () {
 
     before(async () => {
       app = await createHttpServer()
-      nock(AUTH_TOKEN_URL).post('/').reply(200, tokenResponse)
+      nock(AUTH_TOKEN_URL).post(`/`).reply(200, tokenResponse)
     })
 
     test('get access token', async () => {
@@ -97,16 +96,11 @@ describe('routes', function () {
   describe('invalid credentials', async () => {
     // Inputs
     let app
-    const deniedResponse = {
-      data: {
-        error: 'access_denied',
-        error_description: 'Unauthorized',
-      },
-    }
+    const deniedResponse = { error: 'Unauthorised' }
 
     before(async () => {
       app = await createHttpServer()
-      nock(AUTH_TOKEN_URL).post('/').reply(401, deniedResponse)
+      nock(AUTH_TOKEN_URL).post(`/`).reply(401, deniedResponse)
     })
 
     test('access denied to token', async () => {
@@ -145,12 +139,16 @@ describe('routes', function () {
 
     test('add and get item - single metadataFile (legacy)', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadataFile: './test/data/test_file_01.txt' }]
-      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.length(1)
-      expect(runProcessResult.status).to.equal(200)
+      console.log('authToken', authToken)
+
+      context.response = await postRunProcess(app, authToken, [], outputs)
+      expect(context.response.body).to.have.length(1)
+      expect(context.response.status).to.equal(200)
 
       const lastToken = await getLastTokenIdRoute(app, authToken)
       expect(lastToken.body).to.have.property('id')
+
+      console.log('lastToken.body', lastToken.body)
 
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
@@ -163,6 +161,7 @@ describe('routes', function () {
         { owner: USER_ALICE_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
       const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+      console.log('runProcessResult', runProcessResult.status, runProcessResult.body)
       expect(runProcessResult.body).to.have.length(1)
       expect(runProcessResult.status).to.equal(200)
       const lastToken = await getLastTokenIdRoute(app, authToken)
@@ -425,7 +424,7 @@ describe('routes', function () {
 
       await runProcess([], [output])
 
-      const actualResult = await getItemRoute(app, authToken, { id: lastToken.body.id + 1 })
+      await getItemRoute(app, authToken, { id: lastToken.body.id + 1 })
 
       const res = await getItemMetadataRoute(app, authToken, { id: lastTokenId + 1, metadataKey: 'testFile' })
 
@@ -513,6 +512,7 @@ describe('routes', function () {
     test('run-process creating one token', async function () {
       const lastToken = await getLastTokenIdRoute(app, authToken)
       const lastTokenId = lastToken.body.id
+      console.log('lastTokenId', lastToken.body)
 
       let expectedResult = [lastTokenId + 1]
 
@@ -520,11 +520,13 @@ describe('routes', function () {
         { owner: USER_BOB_TOKEN, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
       ]
       const actualResult = await postRunProcess(app, authToken, [], outputs)
+      console.log('actualResult', actualResult.body)
 
       expect(actualResult.status).to.equal(200)
       expect(actualResult.body).to.deep.equal(expectedResult)
 
       const item = await getItemRoute(app, authToken, { id: lastTokenId + 1 })
+      console.log('ITEM', item.body)
 
       expectedResult = {
         id: lastTokenId + 1,
@@ -606,6 +608,7 @@ describe('routes', function () {
 
       const res = await getMembersRoute(app, authToken)
 
+      expect(res.status).to.equal(200)
       expect(res.body).deep.equal(expectedResult)
     })
 

@@ -2,87 +2,76 @@ const express = require('express')
 const formidable = require('formidable')
 
 const {
+  getLastTokenId,
+  getItem,
   runProcess,
   processMetadata,
-  getFile,
   validateInputIds,
   validateTokenId,
-  getItemMetadataSingle,
-  hexToUtf8,
+  getReadableMetadataKeys,
   getMembers,
   containsInvalidMembershipOwners,
   membershipReducer,
+  getMetadataResponse,
 } = require('../util/appUtil')
 const logger = require('../logger')
-const { LEGACY_METADATA_KEY } = require('../env')
+const { LEGACY_METADATA_KEY, FILE_UPLOAD_MAX_SIZE } = require('../env')
 
 const router = express.Router()
 
-const getMetadataResponse = async (tokenId, metadataKey, res) => {
-  const id = validateTokenId(tokenId)
+router.get('/last-token', async (req, res) => {
+  try {
+    const result = await getLastTokenId()
+    res.status(200).json({ id: result })
+  } catch (err) {
+    logger.error(`Error getting latest token. Error was ${err.message || JSON.stringify(err)}`)
+    if (!res.headersSent) {
+      res.status(500).send(`Error getting latest token`)
+    }
+  }
+})
+
+router.get('/item/:id', async (req, res) => {
+  console.log('ITEM ID', req.params.id)
+
+  const id = validateTokenId(req.params.id)
 
   if (!id) {
-    logger.trace(`Invalid id: ${tokenId}`)
-    res.status(400).json({ message: `Invalid id: ${tokenId}` })
+    logger.trace(`Invalid id: ${req.params.id}`)
+    res.status(400).json({ message: `Invalid id: ${req.params.id}` })
     return
   }
 
-  let metadataValue
   try {
-    metadataValue = await getItemMetadataSingle(id, metadataKey)
-  } catch (err) {
-    logger.trace(`Invalid metadata request: ${err.message}`)
-    res.status(404).json({ message: err.message })
-    return
-  }
+    const result = await getItem(id)
 
-  if (metadataValue.file) {
-    let file
-    try {
-      file = await getFile(metadataValue.file)
-    } catch (err) {
-      logger.warn(`Error fetching metadata file: ${metadataValue.file}. Error was ${err}`)
-      res.status(500).send(`Error fetching metadata file: ${metadataValue.file}`)
-      return
-    }
+    result.metadata = getReadableMetadataKeys(result.metadata)
 
-    await new Promise((resolve, reject) => {
-      res.status(200)
-      res.set({
-        immutable: true,
-        maxAge: 365 * 24 * 60 * 60 * 1000,
-        'Content-Disposition': `attachment; filename="${file.filename}"`,
+    if (result.id === id) {
+      console.log('ITEM ID RESULT', result)
+
+      res.status(200).json(result)
+    } else {
+      res.status(404).json({
+        message: `Id not found: ${id}`,
       })
-      file.file.pipe(res)
-      file.file.on('error', (err) => reject(err))
-      res.on('finish', () => resolve())
-    })
-    return
+    }
+  } catch (err) {
+    logger.error(`Error token. Error was ${err.message || JSON.stringify(err)}`)
+    if (!res.headersSent) {
+      res.status(500).send(`Error getting token`)
+    }
   }
-
-  if (metadataValue.literal) {
-    res.set('content-type', 'text/plain')
-    res.status(200).send(hexToUtf8(metadataValue.literal))
-    return
-  }
-
-  if ('none' in metadataValue) {
-    res.set('content-type', 'text/plain')
-    res.status(200).send('')
-    return
-  }
-
-  logger.warn(`Error fetching metadata: ${metadataKey}:${metadataValue}`)
-  res.status(500).send(`Error fetching metadata`)
-  return
-}
+})
 
 // legacy route, gets metadata with legacy key
 router.get('/item/:id/metadata', async (req, res) => {
+  console.log('ITEM ID METADATA', req.params.id, LEGACY_METADATA_KEY, res.body)
   getMetadataResponse(req.params.id, LEGACY_METADATA_KEY, res)
 })
 
 router.get('/item/:id/metadata/:metadataKey', async (req, res) => {
+  console.log('ITEM ID METADATA METADATAKEY', req.params.id, req.params.metadataKey, res.body)
   getMetadataResponse(req.params.id, req.params.metadataKey, res)
 })
 
@@ -101,7 +90,7 @@ router.get('/members', async (req, res) => {
 })
 
 router.post('/run-process', async (req, res) => {
-  const form = formidable({ multiples: true })
+  const form = formidable({ multiples: true, maxFileSize: FILE_UPLOAD_MAX_SIZE })
 
   form.parse(req, async (formError, fields, files) => {
     try {
@@ -158,6 +147,7 @@ router.post('/run-process', async (req, res) => {
       const result = await runProcess(request.inputs, outputs)
 
       if (result) {
+        console.log('RUN PROCESS RESULT', result)
         res.status(200).json(result)
       } else {
         logger.error(`Unexpected error running process ${result}`)

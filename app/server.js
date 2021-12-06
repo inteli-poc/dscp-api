@@ -4,32 +4,33 @@ const pinoHttp = require('pino-http')
 const { initialize } = require('express-openapi')
 const swaggerUi = require('swagger-ui-express')
 const path = require('path')
-
+const bodyParser = require('body-parser')
+const compression = require('compression')
 const { PORT, API_MAJOR_VERSION } = require('./env')
 const logger = require('./logger')
-const router = require('./routes')
-const health = require('./routes/health')
-// const auth = require('./routes/auth')
 const checkJwt = require('./auth')
 const v2ApiDoc = require('./api-v2/api-doc')
 const v2ApiService = require('./api-v2/services/apiService')
+const { API_VERSION } = require('./env')
 
 async function createHttpServer() {
-  const requestLogger = pinoHttp({ logger })
   const app = express()
 
-  app.use(express.json())
   app.use(cors())
+  app.use(compression())
+  app.use(bodyParser.json())
+
+  app.get('/health', async (req, res) => {
+    res.status(200).send({ version: API_VERSION, status: 'ok' })
+    return
+  })
+
   app.use((req, res, next) => {
-    if (req.path !== '/health') {
-      requestLogger(req, res)
+    if (req.path !== `/${API_MAJOR_VERSION}/auth`) {
+        return checkJwt(req, res, next)
     }
     next()
   })
-
-  app.use('/health', health)
-  // app.use('/auth', auth)
-  // app.use('/', checkJwt, router)
 
   initialize({
     app,
@@ -40,11 +41,13 @@ async function createHttpServer() {
     paths: [path.resolve(__dirname, `api-${API_MAJOR_VERSION}/routes`)],
   })
 
+
+
   const options = {
     swaggerOptions: {
       urls: [
         {
-          url: `http//localhost:${PORT}/${API_MAJOR_VERSION}/api-docs`,
+          url: `http://localhost:${PORT}/${API_MAJOR_VERSION}/api-docs`,
           name: 'ApiService',
         },
       ],

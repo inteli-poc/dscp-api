@@ -27,6 +27,23 @@ const apiDoc = {
       },
     },
     schemas: {
+      AuthToken: {
+        type: 'object',
+        properties: {
+          access_token: {
+            description: 'authentication token',
+            type: 'string',
+          },
+          expires_in: {
+            description: 'expiry delta time in milliseconds',
+            type: 'number',
+          },
+          token_type: {
+            description: 'type of the authentication token',
+            type: 'string',
+          },
+        },
+      },
       Item: {
         type: 'object',
         properties: {
@@ -83,24 +100,38 @@ const apiDoc = {
             type: 'string',
           },
         },
-        required: ['id'],
+        required: ['address'],
       },
-      RunProcess: {
+      LegacyMetadata: {
         type: 'object',
         properties: {
-          inputs: {
-            description: 'array of token ids to be consumed by the running process',
-            type: 'array',
+          message: {
+            description: 'message of the legacy metadata',
+            type: 'string',
           },
-          outputs: {
-            description: 'array of objects that describe the tokens to be consumed by running this process',
+        },
+      },
+      Metadata: {
+        type: 'object',
+        properties: {
+          id: {
+            description: 'id of the token',
+            type: 'number',
+          },
+          metadata: {
+            description: 'id of the token',
             type: 'array',
           },
         },
-        required: ['inputs', 'outputs'],
+        required: ['id', 'metadata'],
+      },
+      RunProcess: {
+        description: 'minted token',
+        type: 'string',
       },
     },
   },
+
   paths: {},
 }
 

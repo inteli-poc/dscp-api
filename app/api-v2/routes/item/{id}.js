@@ -1,30 +1,40 @@
 const { validateTokenId } = require('../../../util/appUtil')
 const logger = require('../../../logger')
+const { getReadableMetadataKeys } = require('../../../util/appUtil')
 
 module.exports = function (apiService) {
   const doc = {
     GET: async function (req, res) {
+      console.log('V2 /item/{id}', req.params.id)
+
       const id = validateTokenId(req.params.id)
+      console.log('V2 /item/{id} id', id)
 
       if (!id) {
         logger.trace(`Invalid id: ${req.params.id}`)
         res.status(400).json({ message: `Invalid id: ${req.params.id}` })
-      } else {
-        try {
-          const result = apiService.getItemById(id)
+        return
+      }
 
-          if (result.id === id) {
-            res.status(200).json(result)
-          } else {
-            res.status(404).json({
-              message: `Id not found: ${id}`,
-            })
-          }
-        } catch (err) {
-          logger.error(`Error token. Error was ${err.message || JSON.stringify(err)}`)
-          if (!res.headersSent) {
-            res.status(500).send(`Error getting token`)
-          }
+      try {
+        const result = await apiService.findItemById(id)
+
+        result.metadata = getReadableMetadataKeys(result.metadata)
+
+        console.log('V2 /item/{id} result', result)
+        console.log('V2 /item/{id} id', id)
+
+        if (result.id === id) {
+          res.status(200).json(result)
+        } else {
+          res.status(404).json({
+            message: `Id not found: ${id}`,
+          })
+        }
+      } catch (err) {
+        logger.error(`Error token. Error was ${err.message || JSON.stringify(err)}`)
+        if (!res.headersSent) {
+          res.status(500).send(`Error getting token`)
         }
       }
     },

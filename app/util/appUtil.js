@@ -2,14 +2,13 @@ const fs = require('fs')
 const StreamValues = require('stream-json/streamers/StreamValues')
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
-
 const fetch = require('node-fetch')
 const FormData = require('form-data')
-const { ApiPromise, WsProvider } = require('@polkadot/api')
-
+const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
 const {
   API_HOST,
   API_PORT,
+  USER_URI,
   IPFS_HOST,
   IPFS_PORT,
   METADATA_KEY_LENGTH,
@@ -187,16 +186,15 @@ const downloadFile = async (dirHash) => {
   return { file: fileRes.body, filename }
 }
 
-async function findMembers() {
+async function getLastTokenId() {
   await api.isReady
+  const lastTokenId = await api.query.simpleNftModule.lastToken()
 
-  const result = await api.query.membership.members()
-
-  return result
+  return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
 async function containsInvalidMembershipOwners(outputs) {
-  const membershipMembers = await findMembers()
+  const membershipMembers = await getMembers()
 
   const validOwners = outputs.reduce((acc, { owner }) => {
     if (membershipMembers.includes(owner)) {
@@ -213,6 +211,48 @@ function membershipReducer(members) {
     acc.push({ address: item })
     return acc
   }, [])
+}
+
+async function getMembers() {
+  await api.isReady
+
+  const result = await api.query.membership.members()
+
+  return result
+}
+
+async function runProcess(inputs, outputs) {
+  if (inputs && outputs) {
+    await api.isReady
+    const keyring = new Keyring({ type: 'sr25519' })
+    const alice = keyring.addFromUri(USER_URI)
+
+    // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
+    const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
+    logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
+    return new Promise((resolve) => {
+      let unsub = null
+      api.tx.simpleNftModule
+        .runProcess(inputs, outputsAsPair)
+        .signAndSend(alice, (result) => {
+          logger.debug('result.status %s', JSON.stringify(result.status))
+          logger.debug('result.status.isInBlock', result.status.isInBlock)
+          if (result.status.isInBlock) {
+            const tokens = result.events
+              .filter(({ event: { method } }) => method === 'Minted')
+              .map(({ event: { data } }) => data[0].toNumber())
+
+            unsub()
+            resolve(tokens)
+          }
+        })
+        .then((res) => {
+          unsub = res
+        })
+    })
+  }
+
+  return new Error('An error occurred whilst adding an item.')
 }
 
 const getItemMetadataSingle = async (tokenId, metadataKey) => {
@@ -285,10 +325,73 @@ const validateTokenId = (tokenId) => {
   return id
 }
 
+const getMetadataResponse = async (tokenId, metadataKey, res) => {
+  console.log('getMetadataResponse called', tokenId, metadataKey, res.body)
+
+  const id = validateTokenId(tokenId)
+
+  if (!id) {
+    logger.trace(`Invalid id: ${tokenId}`)
+    res.status(400).json({ message: `Invalid id: ${tokenId}` })
+    return
+  }
+
+  let metadataValue
+  try {
+    metadataValue = await getItemMetadataSingle(id, metadataKey)
+  } catch (err) {
+    logger.trace(`Invalid metadata request: ${err.message}`)
+    res.status(404).json({ message: err.message })
+    return
+  }
+
+  if (metadataValue.file) {
+    let file
+    try {
+      file = await getFile(metadataValue.file)
+    } catch (err) {
+      logger.warn(`Error fetching metadata file: ${metadataValue.file}. Error was ${err}`)
+      res.status(500).send(`Error fetching metadata file: ${metadataValue.file}`)
+      return
+    }
+
+    await new Promise((resolve, reject) => {
+      res.status(200)
+      res.set({
+        immutable: true,
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        'Content-Disposition': `attachment; filename="${file.filename}"`,
+      })
+      file.file.pipe(res)
+      file.file.on('error', (err) => reject(err))
+      res.on('finish', () => resolve())
+    })
+    return
+  }
+
+  if (metadataValue.literal) {
+    res.set('content-type', 'text/plain')
+    res.status(200).send(hexToUtf8(metadataValue.literal))
+    return
+  }
+
+  if ('none' in metadataValue) {
+    res.set('content-type', 'text/plain')
+    res.status(200).send('')
+    return
+  }
+
+  logger.warn(`Error fetching metadata: ${metadataKey}:${metadataValue}`)
+  res.status(500).send(`Error fetching metadata`)
+  return
+}
+
 module.exports = {
-  findMembers,
+  runProcess,
+  getMembers,
   getItemMetadataSingle,
   getItem,
+  getLastTokenId,
   processMetadata,
   getFile,
   validateInputIds,
@@ -298,4 +401,5 @@ module.exports = {
   utf8ToUint8Array,
   containsInvalidMembershipOwners,
   membershipReducer,
+  getMetadataResponse,
 }
