@@ -32,7 +32,7 @@ async function createHttpServer() {
     }
 
     if (req.path !== `/${API_MAJOR_VERSION}/auth`) {
-        return checkJwt(req, res, next)
+      return checkJwt(req, res, next)
     }
     next()
   })
@@ -45,8 +45,6 @@ async function createHttpServer() {
     },
     paths: [path.resolve(__dirname, `api-${API_MAJOR_VERSION}/routes`)],
   })
-
-
 
   const options = {
     swaggerOptions: {
