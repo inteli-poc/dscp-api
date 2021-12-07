@@ -37,7 +37,7 @@ async function createHttpServer() {
     app,
     apiDoc: v2ApiDoc,
     securityHandlers: {
-      bearerAuth: async (req) => {
+      bearerAuth: (req) => {
         return verifyJwks(req.headers['authorization'])
       },
     },

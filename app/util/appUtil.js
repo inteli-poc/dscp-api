@@ -395,15 +395,13 @@ const client = jwksRsa({
 })
 
 async function getKey(header, cb) {
-  client.getSigningKey(header.kid, function (err, key) {
+  client.getSigningKey(header.kid, (err, key) => {
     if (err) {
+      logger.warn(`An error occurred getting jwks key ${err}`)
       cb(err, null)
     } else if (key) {
       const signingKey = key.publicKey || key.rsaPublicKey
       cb(null, signingKey)
-    } else {
-      logger.warn(`Error getting jwks key`)
-      cb(null, null)
     }
   })
 }
@@ -419,7 +417,7 @@ const verifyJwks = async (authHeader) => {
   }
 
   return new Promise((resolve, reject) => {
-    jwt.verify(authToken, getKey, verifyOptions, function (err, decoded) {
+    jwt.verify(authToken, getKey, verifyOptions, (err, decoded) => {
       if (err) {
         resolve(false)
       } else if (decoded) {
