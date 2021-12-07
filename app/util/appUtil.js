@@ -5,6 +5,7 @@ const bs58 = require('base-x')(BASE58)
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api')
+const jwt = require('jsonwebtoken')
 const {
   API_HOST,
   API_PORT,
@@ -16,6 +17,8 @@ const {
   MAX_METADATA_COUNT,
 } = require('../env')
 const logger = require('../logger')
+const jwksRsa = require('jwks-rsa')
+const { AUTH_JWKS_URI } = require('../env')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
 const apiOptions = {
@@ -384,6 +387,40 @@ const getMetadataResponse = async (tokenId, metadataKey, res) => {
   return
 }
 
+const verifyJwks = (authHeader) => {
+  const authToken = authHeader ? authHeader.replace('Bearer ', '') : ''
+
+  const verifyOptions = {
+    algorithms: ['RS256'],
+    header: authToken,
+  }
+
+  const client = jwksRsa({
+    jwksUri: AUTH_JWKS_URI,
+  })
+
+  function getKey(header, callback) {
+    client.getSigningKey(header.kid, function (err, key) {
+      const signingKey = key.publicKey || key.rsaPublicKey
+
+      callback(null, signingKey)
+    })
+  }
+
+  return new Promise((resolve, reject) => {
+    jwt.verify(authToken, getKey, verifyOptions, function (err, decoded) {
+      if (err) {
+        resolve(false)
+      } else if (decoded) {
+        resolve(true)
+      } else {
+        logger.warn(`Error verifying jwks`)
+        reject({ message: 'An error occurred during jwks verification' })
+      }
+    })
+  })
+}
+
 module.exports = {
   runProcess,
   getMembers,
@@ -400,4 +437,5 @@ module.exports = {
   containsInvalidMembershipOwners,
   membershipReducer,
   getMetadataResponse,
+  verifyJwks,
 }

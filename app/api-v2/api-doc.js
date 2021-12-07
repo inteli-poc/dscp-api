@@ -130,6 +130,13 @@ const apiDoc = {
         type: 'string',
       },
     },
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+    },
   },
 
   paths: {},

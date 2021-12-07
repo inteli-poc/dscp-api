@@ -85,6 +85,7 @@ module.exports = function () {
         },
       },
     },
+    security: [],
     tags: ['auth'],
   }
 

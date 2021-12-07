@@ -41,6 +41,7 @@ module.exports = function () {
         },
       },
     },
+    security: [{ bearerAuth: [] }],
     tags: ['item'],
   }
 

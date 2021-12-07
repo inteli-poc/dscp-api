@@ -6,12 +6,11 @@ const swaggerUi = require('swagger-ui-express')
 const path = require('path')
 const bodyParser = require('body-parser')
 const compression = require('compression')
-const { PORT, API_MAJOR_VERSION } = require('./env')
+const { PORT, API_VERSION, API_MAJOR_VERSION } = require('./env')
 const logger = require('./logger')
-const checkJwt = require('./auth')
 const v2ApiDoc = require('./api-v2/api-doc')
 const v2ApiService = require('./api-v2/services/apiService')
-const { API_VERSION } = require('./env')
+const { verifyJwks } = require('./util/appUtil')
 
 async function createHttpServer() {
   const requestLogger = pinoHttp({ logger })
@@ -31,20 +30,17 @@ async function createHttpServer() {
       requestLogger(req, res)
     }
 
-    if (
-      !req.path.match(`/(${API_MAJOR_VERSION}/api-docs)`) &&
-      !req.path.match(`/(${API_MAJOR_VERSION}/swagger)`) &&
-      !req.path.match(`/(${API_MAJOR_VERSION}/auth)`)
-    ) {
-      return checkJwt(req, res, next)
-    }
-
     next()
   })
 
   initialize({
     app,
     apiDoc: v2ApiDoc,
+    securityHandlers: {
+      bearerAuth: (req) => {
+        return verifyJwks(req.headers['authorization'])
+      },
+    },
     dependencies: {
       apiService: v2ApiService,
     },

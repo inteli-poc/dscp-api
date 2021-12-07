@@ -45,6 +45,7 @@ module.exports = function (apiService) {
         },
       },
     },
+    security: [{ bearerAuth: [] }],
     tags: ['system'],
   }
 
