@@ -3,7 +3,7 @@ const { getMetadataResponse } = require('../../../../../util/appUtil')
 module.exports = function () {
   const doc = {
     GET: async function (req, res) {
-      getMetadataResponse(req.params.id, req.params.metadataKey, res)
+      return getMetadataResponse(req.params.id, req.params.metadataKey, res)
     },
   }
 
@@ -29,9 +29,19 @@ module.exports = function () {
       200: {
         description: 'Return metadata',
         content: {
+          'text/plain': {
+            schema: {
+              $ref: '#/components/schemas/MetadataNone',
+            },
+          },
           'application/json': {
             schema: {
-              $ref: '#/components/schemas/Metadata',
+              $ref: '#/components/schemas/MetadataLiteral',
+            },
+          },
+          'application/octet-stream': {
+            schema: {
+              $ref: '#/components/schemas/MetadataFile',
             },
           },
         },

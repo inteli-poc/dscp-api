@@ -4,7 +4,7 @@ const { LEGACY_METADATA_KEY } = require('../../../../env')
 module.exports = function () {
   const doc = {
     GET: async function (req, res) {
-      getMetadataResponse(req.params.id, LEGACY_METADATA_KEY, res)
+      return getMetadataResponse(req.params.id, LEGACY_METADATA_KEY, res)
     },
   }
 
@@ -23,9 +23,19 @@ module.exports = function () {
       200: {
         description: 'Return legacy metadata',
         content: {
+          'text/plain': {
+            schema: {
+              $ref: '#/components/schemas/MetadataNone',
+            },
+          },
           'application/json': {
             schema: {
-              $ref: '#/components/schemas/LegacyMetadata',
+              $ref: '#/components/schemas/MetadataLiteral',
+            },
+          },
+          'application/octet-stream': {
+            schema: {
+              $ref: '#/components/schemas/MetadataFile',
             },
           },
         },

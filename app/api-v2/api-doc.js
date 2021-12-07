@@ -102,28 +102,47 @@ const apiDoc = {
         },
         required: ['address'],
       },
-      LegacyMetadata: {
+      MetadataNone: {
         type: 'object',
         properties: {
-          message: {
-            description: 'message of the legacy metadata',
+          key: {
+            description: 'key of the metadata',
+            type: 'string',
+          },
+          none: {
+            description: 'none value of the metadata',
+            type: 'null',
+          },
+        },
+        required: ['key', 'metadata'],
+      },
+      MetadataFile: {
+        type: 'object',
+        properties: {
+          key: {
+            description: 'key of the metadata',
+            type: 'string',
+          },
+          file: {
+            description: 'file value of the metadata',
             type: 'string',
           },
         },
+        required: ['key', 'metadata'],
       },
-      Metadata: {
+      MetadataLiteral: {
         type: 'object',
         properties: {
-          id: {
-            description: 'id of the token',
-            type: 'number',
+          key: {
+            description: 'key of the metadata',
+            type: 'string',
           },
-          metadata: {
-            description: 'id of the token',
-            type: 'array',
+          literal: {
+            description: 'literal value of the metadata',
+            type: 'string',
           },
         },
-        required: ['id', 'metadata'],
+        required: ['key', 'metadata'],
       },
       RunProcessMintedToken: {
         description: 'minted token',
