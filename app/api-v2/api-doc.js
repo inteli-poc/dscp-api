@@ -125,9 +125,37 @@ const apiDoc = {
         },
         required: ['id', 'metadata'],
       },
-      RunProcess: {
+      RunProcessMintedToken: {
         description: 'minted token',
-        type: 'string',
+        type: 'number',
+      },
+      RunProcessMessage: {
+        description: 'minted token',
+        type: 'object',
+        properties: {
+          message: {
+            description: 'Message',
+            type: 'string',
+          },
+        },
+      },
+      Input: {
+        description: 'Input token id',
+        type: 'number',
+      },
+      Output: {
+        description: 'Output objects that describe tokens to be created by running this process',
+        type: 'object',
+        properties: {
+          owner: {
+            description: 'Owner of the run process',
+            type: 'string',
+          },
+          metadata: {
+            description: 'Output metadata from the run process results',
+            type: 'object',
+          },
+        },
       },
     },
     securitySchemes: {

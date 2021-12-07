@@ -94,6 +94,24 @@ module.exports = function (apiService) {
         required: true,
         name: 'request',
         allowEmptyValue: true,
+        schema: {
+          properties: {
+            request: {
+              properties: {
+                inputs: {
+                  items: {
+                    $ref: '#/components/schemas/Input',
+                  },
+                },
+                outputs: {
+                  items: {
+                    $ref: '#/components/schemas/Output',
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     ],
     responses: {
@@ -102,10 +120,16 @@ module.exports = function (apiService) {
         content: {
           'application/json': {
             schema: {
-              type: 'array',
-              items: {
-                $ref: '#/components/schemas/RunProcess',
-              },
+              oneOf: [
+                {
+                  items: {
+                    $ref: '#/components/schemas/RunProcessMintedToken',
+                  },
+                },
+                {
+                  $ref: '#/components/schemas/RunProcessMessage',
+                },
+              ],
             },
           },
         },
