@@ -7,6 +7,7 @@ module.exports = function () {
     POST: async function (req, res) {
       if (!req.body || !req.body.client_id || !req.body.client_secret) {
         res.status(400).send({ error: '"client_id" and "client_secret" fields required' })
+        return
       }
 
       try {
@@ -24,13 +25,16 @@ module.exports = function () {
 
         if (response.status === 200) {
           res.status(200).json(data)
+          return
         } else {
           logger.error(`Auth0 error: ${data.error_description}`)
           res.status(response.status).send(data)
+          return
         }
       } catch (err) {
         logger.error('Error:', err.message)
         res.status(500).send(`Error: ${err}`)
+        return
       }
     },
   }

@@ -9,10 +9,12 @@ module.exports = function (apiService) {
         const membershipMembers = membershipReducer(members)
 
         res.status(200).json(membershipMembers)
+        return
       } catch (err) {
         logger.error(`Error getting members. Error was ${err.message || JSON.stringify(err)}`)
         if (!res.headersSent) {
           res.status(500).send(`Error getting members`)
+          return
         }
       }
     },

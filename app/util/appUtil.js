@@ -15,10 +15,12 @@ const {
   METADATA_KEY_LENGTH,
   METADATA_VALUE_LITERAL_LENGTH,
   MAX_METADATA_COUNT,
+  AUTH_AUDIENCE,
+  AUTH_JWKS_URI,
+  AUTH_ISSUER,
 } = require('../env')
 const logger = require('../logger')
 const jwksRsa = require('jwks-rsa')
-const { AUTH_JWKS_URI } = require('../env')
 
 const provider = new WsProvider(`ws://${API_HOST}:${API_PORT}`)
 const apiOptions = {
@@ -219,9 +221,7 @@ function membershipReducer(members) {
 async function getMembers() {
   await api.isReady
 
-  const result = await api.query.membership.members()
-
-  return result
+  return api.query.membership.members()
 }
 
 async function runProcess(inputs, outputs) {
@@ -387,24 +387,35 @@ const getMetadataResponse = async (tokenId, metadataKey, res) => {
   return
 }
 
-const verifyJwks = (authHeader) => {
+const client = jwksRsa({
+  cache: true,
+  rateLimit: true,
+  jwksRequestsPerMinute: 5,
+  jwksUri: AUTH_JWKS_URI,
+})
+
+async function getKey(header, cb) {
+  client.getSigningKey(header.kid, function (err, key) {
+    if (err) {
+      cb(err, null)
+    } else if (key) {
+      const signingKey = key.publicKey || key.rsaPublicKey
+      cb(null, signingKey)
+    } else {
+      logger.warn(`Error getting jwks key`)
+      cb(null, null)
+    }
+  })
+}
+
+const verifyJwks = async (authHeader) => {
   const authToken = authHeader ? authHeader.replace('Bearer ', '') : ''
 
   const verifyOptions = {
+    audience: AUTH_AUDIENCE,
+    issuer: [AUTH_ISSUER],
     algorithms: ['RS256'],
     header: authToken,
-  }
-
-  const client = jwksRsa({
-    jwksUri: AUTH_JWKS_URI,
-  })
-
-  function getKey(header, callback) {
-    client.getSigningKey(header.kid, function (err, key) {
-      const signingKey = key.publicKey || key.rsaPublicKey
-
-      callback(null, signingKey)
-    })
   }
 
   return new Promise((resolve, reject) => {

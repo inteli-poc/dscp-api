@@ -6,10 +6,12 @@ module.exports = function (apiService) {
       try {
         const result = await apiService.findLastTokenId()
         res.status(200).json({ id: result })
+        return
       } catch (err) {
         logger.error(`Error getting latest token. Error was ${err.message || JSON.stringify(err)}`)
         if (!res.headersSent) {
           res.status(500).send(`Error getting latest token`)
+          return
         }
       }
     },

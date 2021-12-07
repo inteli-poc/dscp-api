@@ -13,6 +13,7 @@ module.exports = function (apiService) {
           if (formError) {
             logger.error(`Error processing form ${formError}`)
             res.status(500).json({ message: 'Unexpected error processing input' })
+            return
           }
 
           let request = null
@@ -21,22 +22,26 @@ module.exports = function (apiService) {
           } catch (parseError) {
             logger.trace(`Invalid user input ${parseError}`)
             res.status(400).json({ message: `Invalid user input ${parseError}` })
+            return
           }
 
           if (!request || !request.inputs || !request.outputs) {
             logger.trace(`Request missing input and/or outputs`)
             res.status(400).json({ message: `Request missing input and/or outputs` })
+            return
           } else if (request.outputs && (await containsInvalidMembershipOwners(request.outputs))) {
             logger.trace(`Request contains invalid owners that are not members of the membership list`)
             res
               .status(400)
               .json({ message: `Request contains invalid owners that are not members of the membership list` })
+            return
           }
 
           const inputsValid = await validateInputIds(request.inputs)
           if (!inputsValid) {
             logger.trace(`Some inputs were invalid`)
             res.status(400).json({ message: `Some inputs were invalid: ${JSON.stringify(request.inputs)}` })
+            return
           }
 
           const outputs = await Promise.all(
@@ -53,6 +58,7 @@ module.exports = function (apiService) {
               } catch (err) {
                 logger.trace(`Invalid metadata: ${err.message}`)
                 res.status(400).json({ message: err.message })
+                return
               }
             })
           )
@@ -60,16 +66,19 @@ module.exports = function (apiService) {
 
           if (result) {
             res.status(200).json(result)
+            return
           } else {
             logger.error(`Unexpected error running process ${result}`)
             res.status(500).json({
               message: `Unexpected error processing items`,
             })
+            return
           }
         } catch (err) {
           logger.error(`Error running process. Error was ${err.message || JSON.stringify(err)}`)
           if (!res.headersSent) {
             res.status(500).send(`Error running process`)
+            return
           }
         }
       })

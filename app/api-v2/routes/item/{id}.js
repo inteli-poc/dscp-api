@@ -20,6 +20,7 @@ module.exports = function (apiService) {
 
         if (result.id === id) {
           res.status(200).json(result)
+          return
         } else {
           res.status(404).json({
             message: `Id not found: ${id}`,
@@ -29,6 +30,7 @@ module.exports = function (apiService) {
         logger.error(`Error token. Error was ${err.message || JSON.stringify(err)}`)
         if (!res.headersSent) {
           res.status(500).send(`Error getting token`)
+          return
         }
       }
     },
