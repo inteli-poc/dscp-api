@@ -33,6 +33,7 @@ const {
   METADATA_KEY_LENGTH,
   METADATA_VALUE_LITERAL_LENGTH,
   MAX_METADATA_COUNT,
+  API_VERSION,
 } = require('../../app/env')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -57,7 +58,7 @@ describe('routes', function () {
     })
 
     test('health check', async function () {
-      const expectedResult = { status: 'ok' }
+      const expectedResult = { status: 'ok', version: API_VERSION }
 
       const actualResult = await healthCheck(app)
       expect(actualResult.status).to.equal(200)
@@ -78,7 +79,7 @@ describe('routes', function () {
 
     before(async () => {
       app = await createHttpServer()
-      nock(AUTH_TOKEN_URL).post('/').reply(200, tokenResponse)
+      nock(AUTH_TOKEN_URL).post(`/`).reply(200, tokenResponse)
     })
 
     test('get access token', async () => {
@@ -95,16 +96,11 @@ describe('routes', function () {
   describe('invalid credentials', async () => {
     // Inputs
     let app
-    const deniedResponse = {
-      data: {
-        error: 'access_denied',
-        error_description: 'Unauthorized',
-      },
-    }
+    const deniedResponse = { error: 'Unauthorised' }
 
     before(async () => {
       app = await createHttpServer()
-      nock(AUTH_TOKEN_URL).post('/').reply(401, deniedResponse)
+      nock(AUTH_TOKEN_URL).post(`/`).reply(401, deniedResponse)
     })
 
     test('access denied to token', async () => {
@@ -143,9 +139,10 @@ describe('routes', function () {
 
     test('add and get item - single metadataFile (legacy)', async function () {
       const outputs = [{ owner: USER_ALICE_TOKEN, metadataFile: './test/data/test_file_01.txt' }]
-      const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-      expect(runProcessResult.body).to.have.length(1)
-      expect(runProcessResult.status).to.equal(200)
+
+      context.response = await postRunProcess(app, authToken, [], outputs)
+      expect(context.response.body).to.have.length(1)
+      expect(context.response.status).to.equal(200)
 
       const lastToken = await getLastTokenIdRoute(app, authToken)
       expect(lastToken.body).to.have.property('id')
@@ -153,7 +150,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal([LEGACY_METADATA_KEY])
+      expect(getItemResult.body.metadata_keys).to.deep.equal([LEGACY_METADATA_KEY])
     })
 
     test('add and get item - single metadata FILE', async function () {
@@ -169,7 +166,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testFile'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile'])
     })
 
     test('add and get item - single metadata LITERAL', async function () {
@@ -184,7 +181,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testLiteral'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['testLiteral'])
     })
 
     test('add and get item - single NONE', async function () {
@@ -199,7 +196,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testNone'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['testNone'])
     })
 
     test('add and get item metadata - FILE + LITERAL + NONE', async function () {
@@ -223,7 +220,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testFile', 'testLiteral', 'testNone'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile', 'testLiteral', 'testNone'])
 
       const testFile = await getItemMetadataRoute(app, authToken, {
         id: lastToken.body.id,
@@ -269,7 +266,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testFile1', 'testFile2'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile1', 'testFile2'])
     })
 
     test('add and get item - multiple LITERAL', async function () {
@@ -292,7 +289,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['testLiteral1', 'testLiteral2'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['testLiteral1', 'testLiteral2'])
     })
 
     test('add item - missing FILE attachments', async function () {
@@ -393,7 +390,7 @@ describe('routes', function () {
       const getItemResult = await getItemRoute(app, authToken, lastToken.body)
       expect(getItemResult.status).to.equal(200)
       expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
-      expect(getItemResult.body.metadata).to.deep.equal(['1', '2', '3'])
+      expect(getItemResult.body.metadata_keys).to.deep.equal(['1', '2', '3'])
     })
 
     test('get item - missing ID', async function () {
@@ -423,7 +420,7 @@ describe('routes', function () {
 
       await runProcess([], [output])
 
-      const actualResult = await getItemRoute(app, authToken, { id: lastToken.body.id + 1 })
+      await getItemRoute(app, authToken, { id: lastToken.body.id + 1 })
 
       const res = await getItemMetadataRoute(app, authToken, { id: lastTokenId + 1, metadataKey: 'testFile' })
 
@@ -498,7 +495,7 @@ describe('routes', function () {
         owner: USER_BOB_TOKEN,
         parents: [],
         children: null,
-        metadata: [LEGACY_METADATA_KEY],
+        metadata_keys: [LEGACY_METADATA_KEY],
       }
       assertItem(item.body, expectedResult)
 
@@ -530,7 +527,7 @@ describe('routes', function () {
         owner: USER_BOB_TOKEN,
         parents: [],
         children: null,
-        metadata: ['testFile'],
+        metadata_keys: ['testFile'],
       }
       assertItem(item.body, expectedResult)
 
@@ -575,7 +572,7 @@ describe('routes', function () {
         owner: USER_ALICE_TOKEN,
         parents: [],
         children: [lastTokenId + 2],
-        metadata: ['testFile'],
+        metadata_keys: ['testFile'],
       }
 
       assertItem(item.body, expectedResult)
@@ -588,7 +585,7 @@ describe('routes', function () {
         owner: USER_BOB_TOKEN,
         parents: [lastTokenId + 1],
         children: null,
-        metadata: ['testFile'],
+        metadata_keys: ['testFile'],
       }
 
       assertItem(itemNew.body, expectedResult)
@@ -604,6 +601,7 @@ describe('routes', function () {
 
       const res = await getMembersRoute(app, authToken)
 
+      expect(res.status).to.equal(200)
       expect(res.body).deep.equal(expectedResult)
     })
 
