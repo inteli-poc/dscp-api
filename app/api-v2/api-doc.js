@@ -113,47 +113,14 @@ const apiDoc = {
         },
         required: ['address'],
       },
-      MetadataNone: {
-        type: 'object',
-        properties: {
-          key: {
-            description: 'key of the metadata',
-            type: 'string',
-          },
-          none: {
-            description: 'none value of the metadata',
-            type: 'null',
-          },
-        },
-        required: ['key', 'metadata'],
+      Metadata: {
+        description: 'value of the metadata',
+        type: 'string',
       },
       MetadataFile: {
-        type: 'object',
-        properties: {
-          key: {
-            description: 'key of the metadata',
-            type: 'string',
-          },
-          file: {
-            description: 'file value of the metadata',
-            type: 'string',
-          },
-        },
-        required: ['key', 'metadata'],
-      },
-      MetadataLiteral: {
-        type: 'object',
-        properties: {
-          key: {
-            description: 'key of the metadata',
-            type: 'string',
-          },
-          literal: {
-            description: 'literal value of the metadata',
-            type: 'string',
-          },
-        },
-        required: ['key', 'metadata'],
+        description: 'file of the metadata',
+        type: 'string',
+        format: 'binary',
       },
       RunProcessMintedToken: {
         description: 'minted token',

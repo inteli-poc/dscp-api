@@ -28,15 +28,19 @@ module.exports = function () {
     responses: {
       200: {
         description: 'Return metadata',
+        headers: {
+          'content-disposition': {
+            description: 'file attachment of the metadata',
+            schema: {
+              type: 'string',
+              example: 'attachment; filename="${file.filename}"',
+            },
+          },
+        },
         content: {
           'text/plain': {
             schema: {
-              $ref: '#/components/schemas/MetadataNone',
-            },
-          },
-          'application/json': {
-            schema: {
-              $ref: '#/components/schemas/MetadataLiteral',
+              $ref: '#/components/schemas/Metadata',
             },
           },
           'application/octet-stream': {

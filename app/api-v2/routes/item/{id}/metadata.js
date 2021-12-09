@@ -22,17 +22,16 @@ module.exports = function () {
     responses: {
       200: {
         description: 'Return legacy metadata',
+        headers: {
+          'content-disposition': {
+            description: 'file attachment of the metadata',
+            schema: {
+              type: 'string',
+              example: 'attachment; filename="${file.filename}"',
+            },
+          },
+        },
         content: {
-          'text/plain': {
-            schema: {
-              $ref: '#/components/schemas/MetadataNone',
-            },
-          },
-          'application/json': {
-            schema: {
-              $ref: '#/components/schemas/MetadataLiteral',
-            },
-          },
           'application/octet-stream': {
             schema: {
               $ref: '#/components/schemas/MetadataFile',
