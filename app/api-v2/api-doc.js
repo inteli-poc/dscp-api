@@ -66,18 +66,29 @@ const apiDoc = {
           destroyed: {
             description: 'block number the item was destroyed',
             type: 'number',
+            nullable: true,
           },
           parents: {
             description: 'parents of the item',
             type: 'array',
+            items: {
+              type: 'number',
+            },
           },
           children: {
             description: 'children of the item',
             type: 'array',
+            items: {
+              type: 'number',
+            },
+            nullable: true,
           },
           metadata_keys: {
             description: 'metadata keys of the item',
             type: 'array',
+            items: {
+              type: 'string',
+            },
           },
         },
         required: ['id', 'owner', 'creator', 'created_at', 'destroyed', 'parents', 'children', 'metadata'],
