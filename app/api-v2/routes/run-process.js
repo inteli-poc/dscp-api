@@ -1,6 +1,6 @@
 const formidable = require('formidable')
 const logger = require('../../logger')
-const { containsInvalidMembershipOwners, validateInputIds, processMetadata } = require('../../util/appUtil')
+const { validateInputIds, processRoles, processMetadata, rolesEnum } = require('../../util/appUtil')
 const { LEGACY_METADATA_KEY } = require('../../env')
 
 module.exports = function (apiService) {
@@ -29,12 +29,6 @@ module.exports = function (apiService) {
             logger.trace(`Request missing input and/or outputs`)
             res.status(400).json({ message: `Request missing input and/or outputs` })
             return
-          } else if (request.outputs && (await containsInvalidMembershipOwners(request.outputs))) {
-            logger.trace(`Request contains invalid owners that are not members of the membership list`)
-            res
-              .status(400)
-              .json({ message: `Request contains invalid owners that are not members of the membership list` })
-            return
           }
 
           const inputsValid = await validateInputIds(request.inputs)
@@ -46,34 +40,45 @@ module.exports = function (apiService) {
 
           const outputs = await Promise.all(
             request.outputs.map(async (output) => {
+              //catch legacy owner
+              if (output.owner) {
+                output.roles = { [rolesEnum[0]]: output.owner }
+              }
               //catch legacy single metadataFile
               if (output.metadataFile) {
                 output.metadata = { [LEGACY_METADATA_KEY]: { type: 'FILE', value: output.metadataFile } }
               }
+
+              if (!output.roles || output.roles.length === 0) {
+                logger.trace(`Request missing roles`)
+                res.status(400).json({ message: `Request missing roles` })
+                return
+              }
+
               try {
                 return {
-                  owner: output.owner,
+                  roles: await processRoles(output.roles),
                   metadata: await processMetadata(output.metadata, files),
                 }
               } catch (err) {
-                logger.trace(`Invalid metadata: ${err.message}`)
+                logger.trace(`Invalid outputs: ${err.message}`)
                 res.status(400).json({ message: err.message })
                 return
               }
             })
           )
-          const result = await apiService.runProcess(request.inputs, outputs)
 
-          if (result) {
-            res.status(200).json(result)
-            return
-          } else {
-            logger.error(`Unexpected error running process ${result}`)
+          let result
+          try {
+            result = await apiService.runProcess(request.inputs, outputs)
+          } catch (err) {
+            logger.error(`Unexpected error running process: ${err}`)
             res.status(500).json({
               message: `Unexpected error processing items`,
             })
-            return
           }
+
+          res.status(200).json(result)
         } catch (err) {
           logger.error(`Error running process. Error was ${err.message || JSON.stringify(err)}`)
           if (!res.headersSent) {

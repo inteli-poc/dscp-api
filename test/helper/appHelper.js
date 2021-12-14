@@ -4,7 +4,7 @@ const { expect } = require('chai')
 function assertItem(actualResult, expectedResult) {
   expect(actualResult.id).to.equal(expectedResult.id)
   expect(actualResult).has.property('created_at')
-  expect(actualResult.owner).to.equal(expectedResult.owner)
+  expect(actualResult.roles).to.deep.equal(expectedResult.roles)
   expect(actualResult.creator).to.equal(expectedResult.creator)
   expect(actualResult.parents).to.deep.equal(expectedResult.parents)
   expect(actualResult.children).to.deep.equal(expectedResult.children)

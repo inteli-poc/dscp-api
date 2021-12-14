@@ -31,11 +31,12 @@ const apiOptions = {
     PeerId: 'Vec<u8>',
     Key: 'Vec<u8>',
     TokenId: 'u128',
+    RoleKey: 'Role',
     TokenMetadataKey: `[u8; ${METADATA_KEY_LENGTH}]`,
     TokenMetadataValue: 'MetadataValue',
     Token: {
       id: 'TokenId',
-      owner: 'AccountId',
+      roles: 'BTreeMap<RoleKey, AccountId>',
       creator: 'AccountId',
       created_at: 'BlockNumber',
       destroyed_at: 'Option<BlockNumber>',
@@ -50,8 +51,13 @@ const apiOptions = {
         None: null,
       },
     },
+    Role: {
+      // order must match node as values are referenced by index. First entry is default.
+      _enum: ['Admin', 'ManufacturingEngineer', 'ProcurementBuyer', 'ProcurementPlanner', 'Supplier'],
+    },
   },
 }
+const rolesEnum = apiOptions.types.Role._enum
 
 const api = new ApiPromise(apiOptions)
 
@@ -92,6 +98,23 @@ function formatHash(filestoreResponse) {
     const decoded = bs58.decode(dir.Hash)
     return `0x${decoded.toString('hex').slice(4)}`
   }
+}
+
+const processRoles = async (roles) => {
+  const defaultRole = rolesEnum[0]
+  if (!roles[defaultRole]) {
+    throw new Error(`Roles must include default ${defaultRole} role. Roles: ${JSON.stringify(roles)}`)
+  }
+
+  if (await containsInvalidMembershipRoles(roles)) {
+    throw new Error(`Request contains roles with account IDs not in the membership list`)
+  }
+
+  return new Map(
+    Object.entries(roles).map(([key, v]) => {
+      return [roleEnumAsIndex(key), v]
+    })
+  )
 }
 
 async function processMetadata(metadata, files) {
@@ -198,17 +221,18 @@ async function getLastTokenId() {
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
 
-async function containsInvalidMembershipOwners(outputs) {
+async function containsInvalidMembershipRoles(roles) {
   const membershipMembers = await getMembers()
 
-  const validOwners = outputs.reduce((acc, { owner }) => {
-    if (membershipMembers.includes(owner)) {
-      acc.push(owner)
+  const accountIds = Object.values(roles)
+  const validMembers = accountIds.reduce((acc, accountId) => {
+    if (membershipMembers.includes(accountId)) {
+      acc.push(accountId)
       return acc
     }
   }, [])
 
-  return !validOwners || validOwners.length === 0 || validOwners.length !== outputs.length
+  return !validMembers || validMembers.length === 0 || validMembers.length !== accountIds.length
 }
 
 function membershipReducer(members) {
@@ -230,10 +254,9 @@ async function runProcess(inputs, outputs) {
     const keyring = new Keyring({ type: 'sr25519' })
     const alice = keyring.addFromUri(USER_URI)
 
-    // [owner: 'OWNER_ID', metadata: METADATA_OBJ] -> ['OWNER_ID', METADATA_OBJ]
-    const outputsAsPair = outputs.map(({ owner, metadata: md }) => [owner, md])
+    const outputsAsPair = outputs.map(({ roles, metadata: md }) => [roles, md])
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, outputsAsPair)
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       let unsub = null
       api.tx.simpleNftModule
         .runProcess(inputs, outputsAsPair)
@@ -241,6 +264,14 @@ async function runProcess(inputs, outputs) {
           logger.debug('result.status %s', JSON.stringify(result.status))
           logger.debug('result.status.isInBlock', result.status.isInBlock)
           if (result.status.isInBlock) {
+            const errors = result.events
+              .filter(({ event: { method } }) => method === 'ExtrinsicFailed')
+              .map(({ event: { data } }) => data[0])
+
+            if (errors.length > 0) {
+              reject('ExtrinsicFailed error in simpleNftModule')
+            }
+
             const tokens = result.events
               .filter(({ event: { method } }) => method === 'Minted')
               .map(({ event: { data } }) => data[0].toNumber())
@@ -251,6 +282,10 @@ async function runProcess(inputs, outputs) {
         })
         .then((res) => {
           unsub = res
+        })
+        .catch((err) => {
+          logger.warn(`Error in run process transaction: ${err}`)
+          throw err
         })
     })
   }
@@ -305,12 +340,20 @@ const getReadableMetadataKeys = (metadata) => {
   })
 }
 
-const validateInputIds = async (ids) => {
-  return await ids.reduce(async (acc, inputId) => {
+const validateInputIds = async (accountIds) => {
+  await api.isReady
+  const keyring = new Keyring({ type: 'sr25519' })
+  const userId = keyring.addFromUri(USER_URI).address
+
+  return await accountIds.reduce(async (acc, id) => {
     const uptoNow = await acc
-    if (!uptoNow || !inputId || !Number.isInteger(inputId)) return false
-    const { id: echoId, children } = await getItem(inputId)
-    return children === null && echoId === inputId
+    if (!uptoNow || !id || !Number.isInteger(id)) return false
+
+    const { roles, id: echoId, children } = await getItem(id)
+    const defaultRole = rolesEnum[0]
+    if (roles[defaultRole] !== userId) return false
+
+    return children === null && echoId === id
   }, Promise.resolve(true))
 }
 
@@ -326,6 +369,16 @@ const validateTokenId = (tokenId) => {
   if (!Number.isInteger(id) || id === 0) return null
 
   return id
+}
+
+const roleEnumAsIndex = (role) => {
+  const index = rolesEnum.indexOf(role)
+
+  if (index === -1) {
+    throw new Error(`Invalid role: ${role}`)
+  }
+
+  return index
 }
 
 const getMetadataResponse = async (tokenId, metadataKey, res) => {
@@ -436,6 +489,7 @@ module.exports = {
   getItemMetadataSingle,
   getItem,
   getLastTokenId,
+  processRoles,
   processMetadata,
   getFile,
   validateInputIds,
@@ -443,8 +497,9 @@ module.exports = {
   getReadableMetadataKeys,
   hexToUtf8,
   utf8ToUint8Array,
-  containsInvalidMembershipOwners,
   membershipReducer,
+  rolesEnum,
+  containsInvalidMembershipRoles,
   getMetadataResponse,
   verifyJwks,
 }
