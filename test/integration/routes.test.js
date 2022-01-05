@@ -151,8 +151,29 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile'])
+      })
+
+      test('add item that consumes a parent', async function () {
+        // add parent to be consumed
+        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
+        expect(firstToken.status).to.equal(200)
+        const lastToken = await getLastTokenIdRoute(app, authToken)
+        const firstTokenId = lastToken.body.id
+
+        // add new token that will consume
+        const inputs = [firstTokenId]
+        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: 0 }]
+        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
+
+        expect(secondToken.body).to.have.length(1)
+        expect(secondToken.status).to.equal(200)
+
+        const getItemResult = await getItemRoute(app, authToken, { id: firstTokenId + 1 })
+        expect(getItemResult.status).to.equal(200)
+        expect(getItemResult.body.id).to.equal(firstTokenId + 1)
+        expect(getItemResult.body.original_id).to.equal(firstTokenId)
       })
 
       test('add and get item - single metadata LITERAL', async function () {
@@ -166,7 +187,7 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testLiteral'])
       })
 
@@ -181,7 +202,7 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testNone'])
       })
 
@@ -205,7 +226,7 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile', 'testLiteral', 'testNone'])
 
         const testFile = await getItemMetadataRoute(app, authToken, {
@@ -228,7 +249,7 @@ describe('routes', function () {
           metadataKey: 'testNone',
         })
 
-        expect(testNone.text).to.deep.equal('')
+        expect(testNone.text).to.equal('')
         expect(testNone.header['content-type']).equal('text/plain; charset=utf-8')
       })
 
@@ -251,7 +272,7 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile1', 'testFile2'])
       })
 
@@ -274,7 +295,7 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testLiteral1', 'testLiteral2'])
       })
 
@@ -300,7 +321,7 @@ describe('routes', function () {
 
         const getItemResult = await getItemRoute(app, authToken, lastToken.body)
         expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.deep.equal(lastToken.body.id)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['1', '2', '3'])
       })
 
@@ -502,6 +523,41 @@ describe('routes', function () {
         const runProcessResult = await postRunProcess(app, authToken, [], outputs)
         expect(runProcessResult.body.message).to.contain('too many')
         expect(runProcessResult.status).to.equal(400)
+      })
+
+      test('add item with out of range index for parent', async function () {
+        // add parent to be consumed
+        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
+        expect(firstToken.status).to.equal(200)
+        const lastToken = await getLastTokenIdRoute(app, authToken)
+        const firstTokenId = lastToken.body.id
+
+        // add new token with out of range parent_index
+        const inputs = [firstTokenId]
+        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: 99 }]
+        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
+
+        expect(secondToken.body.message).to.equal('Parent index out of range')
+        expect(secondToken.status).to.equal(400)
+      })
+
+      test('add multiple items with same parent', async function () {
+        // add parent to be consumed
+        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
+        expect(firstToken.status).to.equal(200)
+        const lastToken = await getLastTokenIdRoute(app, authToken)
+        const firstTokenId = lastToken.body.id
+
+        // add new tokens with duplicate parent_index
+        const inputs = [firstTokenId]
+        const outputs = [
+          { roles: defaultRole, metadata: {}, parent_index: 0 },
+          { roles: defaultRole, metadata: {}, parent_index: 0 },
+        ]
+        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
+
+        expect(secondToken.body.message).to.equal('Duplicate parent index used')
+        expect(secondToken.status).to.equal(400)
       })
 
       test('get item - missing ID', async function () {

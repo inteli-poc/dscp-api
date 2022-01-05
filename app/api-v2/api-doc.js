@@ -3,7 +3,7 @@ const { PORT, API_VERSION, API_MAJOR_VERSION } = require('../env')
 const apiDoc = {
   openapi: '3.0.3',
   info: {
-    title: 'ApiService',
+    title: 'VITALam API',
     version: API_VERSION,
   },
   servers: [
@@ -53,7 +53,11 @@ const apiDoc = {
         type: 'object',
         properties: {
           id: {
-            description: 'id of the item',
+            description: 'id of this token',
+            type: 'number',
+          },
+          original_id: {
+            description: 'original id of the asset this token refers to',
             type: 'number',
           },
           roles: {
@@ -186,7 +190,12 @@ const apiDoc = {
           metadata: {
             $ref: '#/components/schemas/Metadata',
           },
+          parent_index: {
+            description: 'index of the inputs that this output will be uniquely assigned to',
+            type: 'number',
+          },
         },
+        required: ['roles', 'metadata'],
       },
     },
     securitySchemes: {
