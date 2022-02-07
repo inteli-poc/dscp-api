@@ -1,124 +1,251 @@
-name: Build new release
+name: Release
 
 on:
   push:
-    branches:
-      - main
-
-permissions:
-  contents: write
-  packages: write
-  pull-requests: read
+    branches: ['main']
 
 jobs:
-  # Gets the build version and information about if this is a new version
-  get-version:
-    name: Get version
+  preconditions:
+    runs-on: ubuntu-latest
+    outputs:
+      repo_name: ${{ steps.repo_ids.outputs.REPO_NAME }}
+      org_name: ${{ steps.repo_ids.outputs.ORG_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check token
+        run: |
+          if [ -z "${{ secrets.GITHUB_TOKEN }}"]; then
+            echo "Must provide a GITHUB_TOKEN secret in order to run release workflow"
+            exit 1
+          fi
+      - name: Get repository identifiers
+        id: repo_ids
+        run: |
+          REPO_NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          ORG_NAME=$(echo "${{ github.event.repository.owner.name }}" | tr '[:upper:]' '[:lower:]')
+          echo "::set-output name=REPO_NAME::$REPO_NAME"
+          echo "::set-output name=ORG_NAME::$ORG_NAME"
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    needs: [preconditions]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.8.0
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.0.1
+      - name: Run chart-testing (lint)
+        run: ct lint --validate-maintainers false --charts helm/${{ needs.preconditions.outputs.repo_name }}/ --chart-repos vitalam-node=https://digicatapult.github.io/vitalam-node/,vitalam-ipfs=https://digicatapult.github.io/vitalam-ipfs/
+
+  helm-test:
+    runs-on: ubuntu-latest
+    needs: [preconditions]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          buildkitd-flags: '--debug'
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.8.0
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.0.1
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.3.0
+        with:
+          minikube version: 'v1.17.1'
+          kubernetes version: 'v1.19.2'
+      - name: Login to minikube docker registry
+        run: eval $(minikube -p minikube docker-env)
+      - name: Build and Publish image
+        uses: docker/build-push-action@v2
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          load: true
+          file: ./Dockerfile
+          tags: |
+            ${{ needs.preconditions.outputs.repo_name }}:latest
+          labels: |
+            org.opencontainers.image.title=${{ needs.preconditions.outputs.repo_name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Run chart-testing (install)
+        run: ct install  --charts helm/${{ needs.preconditions.outputs.repo_name }}/ --chart-repos vitalam-node=https://digicatapult.github.io/vitalam-node/,vitalam-ipfs=https://digicatapult.github.io/vitalam-ipfs/
+
+  lint:
+    name: Run lint
+    runs-on: ubuntu-latest
+    needs: [preconditions]
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-node@master
+        with:
+          node-version: 16.x
+      - name: Use npm v8
+        run: npm install -g npm@8
+      - name: Cache Node.js modules
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
+          key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-
+            ${{ runner.OS }}-
+      - name: Install Packages
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+
+  tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+    needs: [preconditions]
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-node@master
+        with:
+          node-version: 16.x
+      - name: Use npm v8
+        run: npm install -g npm@8
+      - name: Cache Node.js modules
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
+          key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-
+            ${{ runner.OS }}-
+      - name: Install Packages
+        run: npm ci
+      - name: Setup dependencies
+        run: docker-compose up -d
+      - name: Sleep
+        uses: kibertoad/wait-action@1.0.1
+        with:
+          time: '30s'
+      - name: Run tests
+        run: npm run test
+  check-version:
+    name: 'Check version'
     runs-on: ubuntu-latest
     outputs:
       is_new_version: ${{ steps.get_version.outputs.IS_NEW_VERSION }}
       version: ${{ steps.get_version.outputs.VERSION }}
       build_date: ${{ steps.get_version.outputs.BUILD_DATE }}
       is_prerelease: ${{ steps.get_version.outputs.IS_PRERELEASE }}
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - run: git fetch --tags
-      - run: |
-          sudo apt-get update
-          sudo apt-get install jq -y
-      - name: Get Build Version
+      - uses: actions/checkout@v2
+      - run: git fetch --depth=1 --tags origin
+      - name: Install yq
+        run: sudo snap install yq
+      - name: Check Build Version
         id: get_version
         run: ./scripts/check-version.sh
         shell: bash
+      - name: Skipping release as version has not increased
+        if: steps.get_version.outputs.IS_NEW_VERSION != 'true'
+        shell: bash
+        run: |
+          echo "Skipping release as current version has already been published"
 
-  build-docker:
-    name: Build Docker
+  publish:
+    name: 'Publish package'
+    needs:
+      - preconditions
+      - helm-lint
+      - helm-test
+      - lint
+      - tests
+      - check-version
     runs-on: ubuntu-latest
-    needs: [get-version]
-    steps:
-    - uses: actions/checkout@master
-    - name: Setup QEMU
-      uses: docker/setup-qemu-action@v1
-      with:
-        platforms: linux/amd64
-    - name: Setup Docker Buildx
-      id: buildx
-      uses: docker/setup-buildx-action@v1
-      with:
-        buildkitd-flags: --debug
-    - name: Generate tags
-      id: generate-tags
-      env:
-        VERSION: ${{ needs.get-version.outputs.version }}
-        IS_NEW_VERSION: ${{ needs.get-version.outputs.is_new_version }}
-        IS_PRERELEASE: ${{ needs.get-version.outputs.is_prerelease }}
-      # if it's a new non prerelease version tag with hash, version latest-dev and latest
-      # if it's a new prerelease version tag with hash, version and latest-dev
-      # if it's a non new version tag with hash and latest-dev
-      run: |
-        if [ "$IS_NEW_VERSION" == "true" ]; then
-          echo "##[set-output name=VERSION_TAG;]ghcr.io/digicatapult/vitalam-api:$VERSION";
-          if [ "$IS_PRERELEASE" == "false" ]; then
-            echo "##[set-output name=LATEST_TAG;]ghcr.io/digicatapult/vitalam-api:latest";
-          else
-            echo "##[set-output name=LATEST_TAG;]";
-          fi;
-        else
-          echo "##[set-output name=VERSION_TAG;]";
-          echo "##[set-output name=LATEST_TAG;]";
-        fi;
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v1
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build image
-      uses: docker/build-push-action@v2
-      with:
-        load: true
-        builder: ${{ steps.buildx.outputs.name }}
-        context: .
-        file: ./Dockerfile
-        platforms: linux/amd64
-        tags: |
-          ghcr.io/digicatapult/vitalam-api:${{ github.sha }}
-          ghcr.io/digicatapult/vitalam-api:latest-dev
-          ${{ steps.generate-tags.outputs.VERSION_TAG }}
-          ${{ steps.generate-tags.outputs.LATEST_TAG }}
-        labels: |
-          org.opencontainers.image.title=vitalam-api
-          org.opencontainers.image.description=${{ github.event.repository.description }}
-          org.opencontainers.image.source=${{ github.event.repository.html_url }}
-          org.opencontainers.image.url=${{ github.event.repository.html_url }}
-          org.opencontainers.image.revision=${{ github.sha }}
-          org.opencontainers.image.version=${{ needs.get-version.outputs.version }}
-          org.opencontainers.image.created=${{ needs.get-version.outputs.build_date }}
-    - name: Publish image
-      run: docker push --all-tags ghcr.io/digicatapult/vitalam-api
-
-  # Github releases are only performed when the release version changes
-  build-release:
-    name: Build release
-    runs-on: ubuntu-latest
-    needs: [build-docker, get-version]
-    if: ${{ needs.get-version.outputs.is_new_version == 'true' }}
+    if: ${{ needs.check-version.outputs.is_new_version == 'true' }}
 
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
+
+      # Docker build
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          buildkitd-flags: '--debug'
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: $GITHUB_ACTOR
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish multi-arch image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/${{ needs.preconditions.outputs.org_name }}/${{ needs.preconditions.outputs.repo_name }}:${{ needs.check-version.outputs.version }}
+            ghcr.io/${{ needs.preconditions.outputs.org_name }}/${{ needs.preconditions.outputs.repo_name }}:latest
+          labels: |
+            org.opencontainers.image.title=${{ needs.preconditions.outputs.repo_name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.check-version.outputs.version }}
+            org.opencontainers.image.created=${{ needs.check-version.outputs.build_date }}
+
+      # Publish helm charts
+      - name: Publish Helm charts
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          charts_dir: helm
+          helm_version: 3.8.0
+
+      # Build github release
       - name: Build release version
         uses: softprops/action-gh-release@v1
         with:
-          token: "${{ secrets.GITHUB_TOKEN }}"
-          tag_name: ${{ needs.get-version.outputs.version }}
-          name: ${{ needs.get-version.outputs.version }}
-          prerelease: ${{ needs.get-version.outputs.is_prerelease == 'true' }}
+          token: '${{ secrets.GITHUB_TOKEN }}'
+          tag_name: ${{ needs.check-version.outputs.version }}
+          prerelease: false
+          name: ${{ needs.check-version.outputs.version }}
           generate_release_notes: true
       - name: Delete release latest
-        if: ${{ needs.get-version.outputs.is_prerelease != 'true' }}
         uses: actions/github-script@v5
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -129,35 +256,12 @@ jobs:
             }
             catch (err) {
               if (err.status !== 422) throw err
-            } 
-      - name: Build release latest
-        if: ${{ needs.get-version.outputs.is_prerelease != 'true' }}
-        uses: softprops/action-gh-release@v1
-        with:
-          token: "${{ secrets.GITHUB_TOKEN }}"
-          tag_name: latest
-          name: Latest ${{ needs.get-version.outputs.version }}
-          prerelease: false
-          generate_release_notes: true
-      - name: Delete release latest-dev
-        if: ${{ needs.get-version.outputs.is_prerelease == 'true' }}
-        uses: actions/github-script@v5
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const { owner, repo } = context.repo
-            try {
-              await github.rest.git.deleteRef({ owner, repo, ref: 'tags/latest-dev' })
             }
-            catch (err) {
-              if (err.status !== 422) throw err
-            }           
-      - name: Build release latest-dev
-        if: ${{ needs.get-version.outputs.is_prerelease == 'true' }}
+      - name: Build release latest
         uses: softprops/action-gh-release@v1
         with:
-          token: "${{ secrets.GITHUB_TOKEN }}"
-          tag_name: latest-dev
-          name: Latest Dev ${{ needs.get-version.outputs.version }}
-          prerelease: true
-          generate_release_notes: false
+          token: '${{ secrets.GITHUB_TOKEN }}'
+          tag_name: latest
+          prerelease: false
+          name: Latest ${{ needs.check-version.outputs.version }}
+          generate_release_notes: true
