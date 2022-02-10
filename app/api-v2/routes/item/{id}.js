@@ -15,11 +15,14 @@ module.exports = function (apiService) {
 
       try {
         const result = await apiService.findItemById(id)
-
-        result.metadata_keys = getReadableMetadataKeys(result.metadata)
+        const { metadata, ...rest } = result
+        const response = {
+          ...rest,
+          metadata_keys: getReadableMetadataKeys(metadata),
+        }
 
         if (result.id === id) {
-          res.status(200).json(result)
+          res.status(200).json(response)
           return
         } else {
           res.status(404).json({

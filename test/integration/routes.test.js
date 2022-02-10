@@ -3,6 +3,7 @@ const createJWKSMock = require('mock-jwks').default
 const { describe, test, before } = require('mocha')
 const { expect } = require('chai')
 const nock = require('nock')
+const moment = require('moment')
 
 const { createHttpServer } = require('../../app/server')
 const {
@@ -153,6 +154,7 @@ describe('routes', function () {
         expect(getItemResult.status).to.equal(200)
         expect(getItemResult.body.id).to.equal(lastToken.body.id)
         expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile'])
+        expect(moment(getItemResult.body.timestamp, moment.ISO_8601, true).isValid()).to.be.true
       })
 
       test('add item that consumes a parent', async function () {

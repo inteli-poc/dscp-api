@@ -337,12 +337,33 @@ async function getItem(tokenId) {
 
   if (tokenId) {
     await api.isReady
-    const item = await api.query.simpleNftModule.tokensById(tokenId)
+    const item = (await api.query.simpleNftModule.tokensById(tokenId)).toJSON()
+    const timestamp = await getTimestamp(item.created_at)
 
-    response = item.toJSON()
+    response = { ...item, timestamp }
   }
 
   return response
+}
+
+async function getTimestamp(blockNumber) {
+  await api.isReady
+  const hash = await api.rpc.chain.getBlockHash(blockNumber)
+  const block = await api.rpc.chain.getBlock(hash)
+
+  const extrinsics = block.block.extrinsics.toHuman()
+  const timestampEx = extrinsics.find(({ method: { section } }) => section === 'timestamp')
+
+  if (!timestampEx) return null
+
+  const {
+    method: { args: rawTimestamp },
+  } = timestampEx
+
+  const unix = parseInt(rawTimestamp[0].replace(/,/g, '')) // convert from e.g. [ '1,644,402,612,003' ]
+  const timestamp = new Date(unix).toISOString()
+
+  return timestamp
 }
 
 async function getFile(base64Hash) {
