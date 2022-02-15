@@ -2,6 +2,31 @@ apiVersion: v1
 entries:
   vitalam-api:
   - apiVersion: v2
+    appVersion: 2.8.2
+    created: "2022-02-15T15:58:50.783991092Z"
+    dependencies:
+    - alias: vitalamNode
+      condition: vitalamNode.enabled
+      name: vitalam-node
+      repository: https://digicatapult.github.io/vitalam-node/
+      version: 0.24.1
+    - alias: vitalamIpfs
+      condition: vitalamIpfs.enabled
+      name: vitalam-ipfs
+      repository: https://digicatapult.github.io/vitalam-ipfs/
+      version: 1.2.6
+    description: A Helm chart for vitalam-api
+    digest: 61c22d1a36b59e02438eb0544aacb10a69672d20e67e4eec102f6c530654041f
+    maintainers:
+    - email: opensource@digicatapult.org.uk
+      name: digicatapult
+      url: www.digicatapult.org.uk
+    name: vitalam-api
+    type: application
+    urls:
+    - https://digicatapult.github.io/vitalam-api/vitalam-api-2.8.2.tgz
+    version: 2.8.2
+  - apiVersion: v2
     appVersion: 2.8.1
     created: "2022-02-15T11:51:57.560982926Z"
     dependencies:
@@ -101,4 +126,4 @@ entries:
     urls:
     - https://digicatapult.github.io/vitalam-api/vitalam-api-2.7.0.tgz
     version: 2.7.0
-generated: "2022-02-15T11:51:57.556130796Z"
+generated: "2022-02-15T15:58:50.779260366Z"
