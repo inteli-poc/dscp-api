@@ -1,5 +1,5 @@
 const fetch = require('node-fetch')
-const { AUTH_TOKEN_URL, AUTH_AUDIENCE, AUTH_GRANT_TYPE } = require('../../env')
+const { AUTH_TOKEN_URL, AUTH_AUDIENCE } = require('../../env')
 const logger = require('../../logger')
 
 module.exports = function () {
@@ -15,7 +15,7 @@ module.exports = function () {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
-            grant_type: AUTH_GRANT_TYPE,
+            grant_type: 'client_credentials',
             client_id: req.body.client_id,
             client_secret: req.body.client_secret,
             audience: AUTH_AUDIENCE,
