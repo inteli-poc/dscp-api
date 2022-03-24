@@ -19,6 +19,7 @@ const vars = envalid.cleanEnv(process.env, {
   IPFS_PORT: envalid.port({ devDefault: 5001, default: 15001 }),
   AUTH_JWKS_URI: envalid.url({ devDefault: 'https://inteli.eu.auth0.com/.well-known/jwks.json' }),
   AUTH_AUDIENCE: envalid.str({ devDefault: 'inteli-dev' }),
+  AUTH_GRANT_TYPE: envalid.str({ devDefault: 'client_credentials' }),
   AUTH_ISSUER: envalid.url({ devDefault: 'https://inteli.eu.auth0.com/' }),
   AUTH_TOKEN_URL: envalid.url({ devDefault: 'https://inteli.eu.auth0.com/oauth/token' }),
   METADATA_KEY_LENGTH: envalid.num({ default: 32 }),
