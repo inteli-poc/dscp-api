@@ -11,19 +11,29 @@ const { PORT, API_VERSION, API_MAJOR_VERSION } = require('./env')
 const logger = require('./logger')
 const apiDoc = require('./api-v3/api-doc')
 const apiService = require('./api-v3/services/apiService')
+const { startStatusHandlers } = require('./serviceStatus')
+const { serviceState } = require('./util/statusPoll')
 const { verifyJwks } = require('./util/appUtil')
 
 async function createHttpServer() {
   const requestLogger = pinoHttp({ logger })
   const app = express()
+  const statusHandler = await startStatusHandlers()
 
   app.use(cors())
   app.use(compression())
   app.use(bodyParser.json())
 
+  const serviceStatusStrings = {
+    [serviceState.UP]: 'ok',
+    [serviceState.DOWN]: 'down',
+    [serviceState.ERROR]: 'error',
+  }
   app.get('/health', async (req, res) => {
-    res.status(200).send({ version: API_VERSION, status: 'ok' })
-    return
+    const status = statusHandler.status
+    const detail = statusHandler.detail
+    const code = status === serviceState.UP ? 200 : 503
+    res.status(code).send({ version: API_VERSION, status: serviceStatusStrings[status] || 'error', detail })
   })
 
   app.use((req, res, next) => {
@@ -84,20 +94,52 @@ async function createHttpServer() {
     }
   })
 
-  return app
+  return { app, statusHandler }
 }
 
 async function startServer() {
-  const app = await createHttpServer()
+  try {
+    const { app, statusHandler } = await createHttpServer()
 
-  app.listen(PORT, (err) => {
-    if (err) {
-      logger.error('Error  starting app:', err)
-      throw err
-    } else {
-      logger.info(`Server is listening on port ${PORT}`)
+    const server = await new Promise((resolve, reject) => {
+      let resolved = false
+      const server = app.listen(PORT, (err) => {
+        if (err) {
+          if (!resolved) {
+            resolved = true
+            reject(err)
+          }
+        }
+        logger.info(`Listening on port ${PORT} `)
+        if (!resolved) {
+          resolved = true
+          resolve(server)
+        }
+      })
+      server.on('error', (err) => {
+        if (!resolved) {
+          resolved = true
+          reject(err)
+        }
+      })
+    })
+
+    const closeHandler = (exitCode) => async () => {
+      server.close(async () => {
+        await statusHandler.close()
+        process.exit(exitCode)
+      })
     }
-  })
+
+    const setupGracefulExit = ({ sigName, exitCode }) => {
+      process.on(sigName, closeHandler(exitCode))
+    }
+    setupGracefulExit({ sigName: 'SIGINT', server, exitCode: 0 })
+    setupGracefulExit({ sigName: 'SIGTERM', server, exitCode: 143 })
+  } catch (err) {
+    logger.fatal('Fatal error during initialisation: %s', err.message)
+    process.exit(1)
+  }
 }
 
 module.exports = { startServer, createHttpServer }
