@@ -6,8 +6,8 @@ services:
       - 4001:4001
       - 8080:8080
       - 5001:5001
-  vitalam-node:
-    image: ghcr.io/digicatapult/vitalam-node:v2.11.0
+  dscp-node:
+    image: ghcr.io/digicatapult/dscp-node:latest
     command:
       --base-path /data/
       --dev

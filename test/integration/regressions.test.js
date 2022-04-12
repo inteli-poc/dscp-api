@@ -16,10 +16,11 @@ const { API_MAJOR_VERSION, AUTH_ISSUER, AUTH_AUDIENCE } = require('../../app/env
 const defaultRole = { [rolesEnum[0]]: USER_ALICE_TOKEN }
 
 describe('Bug regression tests', function () {
-  describe('API run-process is broken with file uploads (https://github.com/digicatapult/vitalam-api/issues/17)', function () {
+  describe('API run-process is broken with file uploads (https://github.com/digicatapult/dscp-api/issues/17)', function () {
     let app
     let jwksMock
     let authToken
+    let statusHandler
 
     before(async () => {
       nock.disableNetConnect()
@@ -32,7 +33,9 @@ describe('Bug regression tests', function () {
     })
 
     before(async function () {
-      app = await createHttpServer()
+      const server = await createHttpServer()
+      app = server.app
+      statusHandler = server.statusHandler
 
       jwksMock = createJWKSMock(AUTH_ISSUER)
       jwksMock.start()
@@ -44,6 +47,10 @@ describe('Bug regression tests', function () {
 
     after(async function () {
       await jwksMock.stop()
+    })
+
+    after(function () {
+      statusHandler.close()
     })
 
     test('add and get item - single metadata FILE', async function () {
