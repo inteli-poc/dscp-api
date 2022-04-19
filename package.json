@@ -1,6 +1,6 @@
 {
   "name": "dscp-api",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "DSCP API",
   "repository": {
     "type": "git",
@@ -27,7 +27,7 @@
     "coverage": "LOG_LEVEL=fatal NODE_ENV=development nyc mocha --recursive ./test/integration --timeout 60000 --slow 20000 --exit"
   },
   "dependencies": {
-    "@polkadot/api": "^5.9.1",
+    "@digicatapult/dscp-node": "^3.0.1",
     "base-x": "^3.0.8",
     "body-parser": "^1.19.0",
     "compression": "^1.7.4",
@@ -37,7 +37,6 @@
     "express": "^4.17.1",
     "express-openapi": "^10.0.0",
     "form-data": "^4.0.0",
-    "install": "^0.13.0",
     "jsonwebtoken": "^8.5.1",
     "jwks-rsa": "^2.0.3",
     "multer": "^1.4.4",
