@@ -8,7 +8,6 @@ const sinon = require('sinon')
 const { createHttpServer } = require('../../app/server')
 const {
   healthCheck,
-  getAuthTokenRoute,
   postRunProcess,
   postRunProcessWithProcess,
   postRunProcessNoFileAttach,
@@ -27,7 +26,6 @@ const USER_CHARLIE_TOKEN = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
 const { assertItem } = require('../helper/appHelper')
 const { runProcess, utf8ToUint8Array, rolesEnum } = require('../../app/util/appUtil')
 const {
-  AUTH_TOKEN_URL,
   AUTH_ISSUER,
   AUTH_AUDIENCE,
   METADATA_KEY_LENGTH,
@@ -256,64 +254,6 @@ describe('routes', function () {
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
-    })
-  })
-
-  describeAuthOnly('auth token route', async () => {
-    // Inputs
-    let app, statusHandler
-    const tokenResponse = {
-      data: {
-        access_token: 'fake access token',
-        expires_in: 86400,
-        token_type: 'Bearer',
-      },
-    }
-
-    before(async () => {
-      const server = await createHttpServer()
-      app = server.app
-      statusHandler = server.statusHandler
-      nock(AUTH_TOKEN_URL).post(`/`).reply(200, tokenResponse)
-    })
-
-    after(function () {
-      statusHandler.close()
-    })
-
-    test('get access token', async () => {
-      // Execution
-      const res = await getAuthTokenRoute(app)
-
-      // Assertions
-      expect(res.error).to.be.false
-      expect(res.status).to.equal(200)
-      expect(res.body).to.deep.equal(tokenResponse)
-    })
-  })
-
-  describeAuthOnly('auth token route - invalid credentials', async () => {
-    // Inputs
-    let app, statusHandler
-    const deniedResponse = { error: 'Unauthorised' }
-
-    before(async () => {
-      const server = await createHttpServer()
-      app = server.app
-      statusHandler = server.statusHandler
-      nock(AUTH_TOKEN_URL).post(`/`).reply(401, deniedResponse)
-    })
-
-    after(function () {
-      statusHandler.close()
-    })
-
-    test('access denied to token', async () => {
-      const res = await getAuthTokenRoute(app)
-
-      expect(res.error).to.exist
-      expect(res.status).to.equal(401)
-      expect(res.body).to.deep.equal(deniedResponse)
     })
   })
 

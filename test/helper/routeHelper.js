@@ -19,14 +19,6 @@ async function healthCheck(app) {
     })
 }
 
-async function getAuthTokenRoute(app) {
-  return request(app)
-    .post(`/${API_MAJOR_VERSION}/auth`)
-    .send({ client_id: 'test', client_secret: 'test' })
-    .then((res) => res)
-    .catch((err) => console.error('getTokenErr', err))
-}
-
 async function addFileRoute(file) {
   const form = new FormData()
   form.append('file', fs.createReadStream(file))
@@ -168,7 +160,6 @@ async function getMembersRoute(app, authToken) {
 
 module.exports = {
   healthCheck,
-  getAuthTokenRoute,
   postRunProcess,
   postRunProcessWithProcess,
   postRunProcessNoFileAttach,

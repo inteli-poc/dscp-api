@@ -80,7 +80,7 @@ The following environment variables are additionally used when `AUTH_TYPE : 'JWT
 | AUTH_JWKS_URI  |    N     | `https://inteli.eu.auth0.com/.well-known/jwks.json` | JSON Web Key Set containing public keys used by the Auth0 API         |
 | AUTH_AUDIENCE  |    N     |                    `inteli-dev`                     | Identifier of the Auth0 API                                           |
 | AUTH_ISSUER    |    N     |           `https://inteli.eu.auth0.com/`            | Domain of the Auth0 API `                                             |
-| AUTH_TOKEN_URL |    N     |      `https://inteli.eu.auth0.com/oauth/token`      | Auth0 API endpoint that issues an Authorisation (Bearer) access token |
+
 
 ## Running the API
 
@@ -93,27 +93,6 @@ npm start
 ## API specification
 
 ### Access token endpoint
-
-### POST /auth
-
-Gets an `access_token` via Auth0 for using as authorisation on all other endpoints. Takes a `body` with the following format:
-
-```js
-{
-    "client_id": "YOUR_CLIENT_ID", // String
-    "client_secret": "YOUR_CLIENT_SECRET" // String
-}
-```
-
-This will return a JSON response (`Content-Type` `application/json`) of the form:
-
-```js
-{
-    "access_token": "an.example.jwt", // String (JWT)
-    "expires_in": 86400, // Number
-    "token_type": "Bearer" // String
-}
-```
 
 ### Authenticated endpoints
 
