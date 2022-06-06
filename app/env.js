@@ -15,7 +15,6 @@ const AUTH_ENVS = {
     AUTH_JWKS_URI: envalid.url({ devDefault: 'https://inteli.eu.auth0.com/.well-known/jwks.json' }),
     AUTH_AUDIENCE: envalid.str({ devDefault: 'inteli-dev' }),
     AUTH_ISSUER: envalid.url({ devDefault: 'https://inteli.eu.auth0.com/' }),
-    AUTH_TOKEN_URL: envalid.url({ devDefault: 'https://inteli.eu.auth0.com/oauth/token' }),
   },
 }
 
