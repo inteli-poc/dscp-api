@@ -94,27 +94,6 @@ npm start
 
 ### Access token endpoint
 
-### POST /auth
-
-Gets an `access_token` via Auth0 for using as authorisation on all other endpoints. Takes a `body` with the following format:
-
-```js
-{
-    "client_id": "YOUR_CLIENT_ID", // String
-    "client_secret": "YOUR_CLIENT_SECRET" // String
-}
-```
-
-This will return a JSON response (`Content-Type` `application/json`) of the form:
-
-```js
-{
-    "access_token": "an.example.jwt", // String (JWT)
-    "expires_in": 86400, // Number
-    "token_type": "Bearer" // String
-}
-```
-
 ### Authenticated endpoints
 
 If `AUTH_TYPE` env is set to `JWT`, the rest of the endpoints in `dscp-api` require authentication in the form of a header `'Authorization: Bearer YOUR_ACCESS_TOKEN'`:

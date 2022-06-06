@@ -281,15 +281,6 @@ describe('routes', function () {
       statusHandler.close()
     })
 
-    test('get access token', async () => {
-      // Execution
-      const res = await getAuthTokenRoute(app)
-
-      // Assertions
-      expect(res.error).to.be.false
-      expect(res.status).to.equal(200)
-      expect(res.body).to.deep.equal(tokenResponse)
-    })
   })
 
   describeAuthOnly('auth token route - invalid credentials', async () => {
@@ -308,13 +299,6 @@ describe('routes', function () {
       statusHandler.close()
     })
 
-    test('access denied to token', async () => {
-      const res = await getAuthTokenRoute(app)
-
-      expect(res.error).to.exist
-      expect(res.status).to.equal(401)
-      expect(res.body).to.deep.equal(deniedResponse)
-    })
   })
 
   describeAuthOnly('authenticated', function () {
