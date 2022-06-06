@@ -26,7 +26,6 @@ const USER_CHARLIE_TOKEN = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
 const { assertItem } = require('../helper/appHelper')
 const { runProcess, utf8ToUint8Array, rolesEnum } = require('../../app/util/appUtil')
 const {
-  AUTH_TOKEN_URL,
   AUTH_ISSUER,
   AUTH_AUDIENCE,
   METADATA_KEY_LENGTH,
