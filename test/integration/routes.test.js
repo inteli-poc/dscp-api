@@ -8,7 +8,6 @@ const sinon = require('sinon')
 const { createHttpServer } = require('../../app/server')
 const {
   healthCheck,
-  getAuthTokenRoute,
   postRunProcess,
   postRunProcessWithProcess,
   postRunProcessNoFileAttach,
@@ -257,48 +256,6 @@ describe('routes', function () {
         expect(actualResult.body).to.deep.equal(response.body)
       })
     })
-  })
-
-  describeAuthOnly('auth token route', async () => {
-    // Inputs
-    let app, statusHandler
-    const tokenResponse = {
-      data: {
-        access_token: 'fake access token',
-        expires_in: 86400,
-        token_type: 'Bearer',
-      },
-    }
-
-    before(async () => {
-      const server = await createHttpServer()
-      app = server.app
-      statusHandler = server.statusHandler
-      nock(AUTH_TOKEN_URL).post(`/`).reply(200, tokenResponse)
-    })
-
-    after(function () {
-      statusHandler.close()
-    })
-
-  })
-
-  describeAuthOnly('auth token route - invalid credentials', async () => {
-    // Inputs
-    let app, statusHandler
-    const deniedResponse = { error: 'Unauthorised' }
-
-    before(async () => {
-      const server = await createHttpServer()
-      app = server.app
-      statusHandler = server.statusHandler
-      nock(AUTH_TOKEN_URL).post(`/`).reply(401, deniedResponse)
-    })
-
-    after(function () {
-      statusHandler.close()
-    })
-
   })
 
   describeAuthOnly('authenticated', function () {
