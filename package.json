@@ -1,6 +1,6 @@
 {
   "name": "dscp-api",
-  "version": "4.1.0",
+  "version": "4.3.0",
   "description": "DSCP API",
   "repository": {
     "type": "git",
@@ -19,15 +19,17 @@
   "main": "./app/index.js",
   "scripts": {
     "test": "NODE_ENV=test mocha --config ./test/mocharc.js ./test",
+    "test:jwt": "NODE_ENV=test AUTH_TYPE=JWT mocha --config ./test/mocharc.js ./test",
     "test:unit": "NODE_ENV=test mocha --config ./test/mocharc.js ./test/unit",
     "test:integration": "NODE_ENV=test mocha --config ./test/mocharc.js ./test/integration",
     "lint": "eslint .",
     "start": "NODE_ENV=production node app/index.js",
     "dev": "NODE_ENV=development nodemon app/index.js | pino-colada",
-    "coverage": "LOG_LEVEL=fatal NODE_ENV=development nyc mocha --recursive ./test/integration --timeout 60000 --slow 20000 --exit"
+    "coverage": "LOG_LEVEL=fatal NODE_ENV=development nyc mocha --recursive ./test/integration --timeout 60000 --slow 20000 --exit",
+    "coverage:merge": "LOG_LEVEL=fatal NODE_ENV=development nyc --no-clean npm run test && nyc --no-clean npm run test:jwt && nyc merge .nyc_output --timeout 60000 --slow 20000 --exit"
   },
   "dependencies": {
-    "@digicatapult/dscp-node": "^3.0.1",
+    "@digicatapult/dscp-node": "^3.6.0",
     "base-x": "^3.0.8",
     "body-parser": "^1.19.0",
     "compression": "^1.7.4",

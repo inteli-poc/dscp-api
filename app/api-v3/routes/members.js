@@ -1,5 +1,6 @@
 const logger = require('../../logger')
 const { membershipReducer } = require('../../util/appUtil')
+const { getDefaultSecurity } = require('../../util/auth')
 
 module.exports = function (apiService) {
   const doc = {
@@ -47,7 +48,7 @@ module.exports = function (apiService) {
         },
       },
     },
-    security: [{ bearerAuth: [] }],
+    security: getDefaultSecurity(),
     tags: ['system'],
   }
 

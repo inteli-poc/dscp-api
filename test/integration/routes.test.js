@@ -8,7 +8,6 @@ const sinon = require('sinon')
 const { createHttpServer } = require('../../app/server')
 const {
   healthCheck,
-  getAuthTokenRoute,
   postRunProcess,
   postRunProcessWithProcess,
   postRunProcessNoFileAttach,
@@ -27,7 +26,6 @@ const USER_CHARLIE_TOKEN = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
 const { assertItem } = require('../helper/appHelper')
 const { runProcess, utf8ToUint8Array, rolesEnum } = require('../../app/util/appUtil')
 const {
-  AUTH_TOKEN_URL,
   AUTH_ISSUER,
   AUTH_AUDIENCE,
   METADATA_KEY_LENGTH,
@@ -36,6 +34,7 @@ const {
   PROCESS_IDENTIFIER_LENGTH,
   IPFS_HOST,
   IPFS_PORT,
+  AUTH_TYPE,
 } = require('../../app/env')
 
 const { responses: healthcheckResponses } = require('../helper/healthcheckFixtures')
@@ -45,6 +44,9 @@ const { substrateApi } = require('../../app/util/substrateApi')
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
 const defaultRole = { [rolesEnum[0]]: USER_ALICE_TOKEN }
+
+const describeAuthOnly = AUTH_TYPE === 'JWT' ? describe : describe.skip
+const describeNoAuthOnly = AUTH_TYPE === 'NONE' ? describe : describe.skip
 
 describe('routes', function () {
   before(async () => {
@@ -255,70 +257,7 @@ describe('routes', function () {
     })
   })
 
-  describe('access token', async () => {
-    // Inputs
-    let app, statusHandler
-    const tokenResponse = {
-      data: {
-        access_token: 'fake access token',
-        expires_in: 86400,
-        token_type: 'Bearer',
-      },
-    }
-
-    before(async () => {
-      const server = await createHttpServer()
-      app = server.app
-      statusHandler = server.statusHandler
-      nock(AUTH_TOKEN_URL).post(`/`).reply(200, tokenResponse)
-    })
-
-    after(function () {
-      statusHandler.close()
-    })
-
-    test('get access token', async () => {
-      // Execution
-      const res = await getAuthTokenRoute(app)
-
-      // Assertions
-      expect(res.error).to.be.false
-      expect(res.status).to.equal(200)
-      expect(res.body).to.deep.equal(tokenResponse)
-    })
-  })
-
-  describe('invalid credentials', async () => {
-    // Inputs
-    let app, statusHandler
-    const deniedResponse = { error: 'Unauthorised' }
-
-    before(async () => {
-      const server = await createHttpServer()
-      app = server.app
-      statusHandler = server.statusHandler
-      nock(AUTH_TOKEN_URL).post(`/`).reply(401, deniedResponse)
-    })
-
-    after(function () {
-      statusHandler.close()
-    })
-
-    test('access denied to token', async () => {
-      const res = await getAuthTokenRoute(app)
-
-      expect(res.error).to.exist
-      expect(res.status).to.equal(401)
-      expect(res.body).to.deep.equal(deniedResponse)
-    })
-
-    test('invalid token', async function () {
-      const result = await getLastTokenIdRoute(app, 'invalidToken')
-      expect(result.status).to.equal(401)
-    })
-  })
-
-  describe('authenticated routes', function () {
+  describeAuthOnly('authenticated', function () {
     let app
     let jwksMock
     let authToken
@@ -728,6 +667,11 @@ describe('routes', function () {
     })
 
     describe('invalid requests', function () {
+      test('invalid bearer token', async function () {
+        const result = await getLastTokenIdRoute(app, 'invalidToken')
+        expect(result.status).to.equal(401)
+      })
+
       test('add item - missing FILE attachments', async function () {
         const outputs = [
           { roles: defaultRole, metadata: { testFile1: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
@@ -1178,6 +1122,96 @@ describe('routes', function () {
 
         expect(runProcessResult.status).to.equal(400)
         expect(runProcessResult.body.message).to.equal(`Invalid process version: ${version}`)
+      })
+    })
+  })
+
+  describeNoAuthOnly('no auth', function () {
+    let app
+    let statusHandler
+    const process = {}
+
+    before(async function () {
+      const server = await createHttpServer()
+      app = server.app
+      statusHandler = server.statusHandler
+    })
+
+    after(function () {
+      statusHandler.close()
+    })
+
+    withNewTestProcess(process)
+
+    describe('happy path', function () {
+      test('add and get item metadata - FILE + LITERAL + TOKEN_ID + NONE', async function () {
+        const outputs = [
+          {
+            roles: defaultRole,
+            metadata: {
+              testFile: { type: 'FILE', value: './test/data/test_file_01.txt' },
+              testLiteral: { type: 'LITERAL', value: 'notAFile' },
+              testTokenId: { type: 'TOKEN_ID', value: '42' },
+              testNone: { type: 'NONE' },
+            },
+          },
+        ]
+        const runProcessResult = await postRunProcess(app, null, [], outputs)
+        expect(runProcessResult.body).to.have.length(1)
+        expect(runProcessResult.status).to.equal(200)
+
+        const lastToken = await getLastTokenIdRoute(app, null)
+        expect(lastToken.body).to.have.property('id')
+
+        const getItemResult = await getItemRoute(app, null, lastToken.body)
+        expect(getItemResult.status).to.equal(200)
+        expect(getItemResult.body.id).to.equal(lastToken.body.id)
+        expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile', 'testLiteral', 'testNone', 'testTokenId'])
+
+        const testFile = await getItemMetadataRoute(app, null, {
+          id: lastToken.body.id,
+          metadataKey: 'testFile',
+        })
+        expect(testFile.body.toString('utf8')).equal('This is the first test file...\n')
+        expect(testFile.header['content-disposition']).equal('attachment; filename="test_file_01.txt"')
+        expect(testFile.header['content-type']).equal('application/octet-stream')
+
+        const testLiteral = await getItemMetadataRoute(app, null, {
+          id: lastToken.body.id,
+          metadataKey: 'testLiteral',
+        })
+
+        expect(testLiteral.text).equal('notAFile')
+        expect(testLiteral.header['content-type']).equal('text/plain; charset=utf-8')
+
+        const testTokenId = await getItemMetadataRoute(app, null, {
+          id: lastToken.body.id,
+          metadataKey: 'testTokenId',
+        })
+
+        expect(testTokenId.text).equal('42')
+        expect(testTokenId.header['content-type']).equal('text/plain; charset=utf-8')
+
+        const testNone = await getItemMetadataRoute(app, null, {
+          id: lastToken.body.id,
+          metadataKey: 'testNone',
+        })
+
+        expect(testNone.text).to.equal('')
+        expect(testNone.header['content-type']).equal('text/plain; charset=utf-8')
+      })
+
+      test('return membership members', async function () {
+        let expectedResult = [
+          { address: USER_BOB_TOKEN },
+          { address: ALICE_STASH },
+          { address: USER_ALICE_TOKEN },
+          { address: BOB_STASH },
+        ]
+
+        const res = await getMembersRoute(app, null)
+
+        expect(res.body).deep.equal(expectedResult)
       })
     })
   })
