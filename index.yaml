@@ -2,6 +2,31 @@ apiVersion: v1
 entries:
   dscp-api:
   - apiVersion: v2
+    appVersion: 4.5.0
+    created: "2022-07-12T16:04:41.444169844Z"
+    dependencies:
+    - alias: dscpNode
+      condition: dscpNode.enabled
+      name: dscp-node
+      repository: https://digicatapult.github.io/dscp-node/
+      version: 4.0.0
+    - alias: dscpIpfs
+      condition: dscpIpfs.enabled
+      name: dscp-ipfs
+      repository: https://digicatapult.github.io/dscp-ipfs/
+      version: 2.3.0
+    description: A Helm chart for dscp-api
+    digest: 3567fe4e9579f93f0fdc795285c04401ef943a7a4576750bd14e86c6bc3774ab
+    maintainers:
+    - email: opensource@digicatapult.org.uk
+      name: digicatapult
+      url: www.digicatapult.org.uk
+    name: dscp-api
+    type: application
+    urls:
+    - https://digicatapult.github.io/dscp-api/dscp-api-4.5.0.tgz
+    version: 4.5.0
+  - apiVersion: v2
     appVersion: 4.4.0
     created: "2022-07-12T10:43:42.355904593Z"
     dependencies:
@@ -552,4 +577,4 @@ entries:
     urls:
     - https://digicatapult.github.io/vitalam-api/vitalam-api-2.7.0.tgz
     version: 2.7.0
-generated: "2022-07-12T10:43:42.352924177Z"
+generated: "2022-07-12T16:04:41.441010905Z"
