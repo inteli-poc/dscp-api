@@ -23,13 +23,12 @@ const USER_BOB_TOKEN = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty'
 const USER_CHARLIE_TOKEN = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
 const NON_MEMBER_TOKEN = '5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY'
 const { assertItem } = require('../helper/appHelper')
-const { runProcess, utf8ToUint8Array, rolesEnum } = require('../../app/util/appUtil')
+const { runProcess, utf8ToHex, indexToRole, getMaxMetadataCount } = require('../../app/util/appUtil')
 const {
   AUTH_ISSUER,
   AUTH_AUDIENCE,
   METADATA_KEY_LENGTH,
   METADATA_VALUE_LITERAL_LENGTH,
-  MAX_METADATA_COUNT,
   PROCESS_IDENTIFIER_LENGTH,
   IPFS_HOST,
   IPFS_PORT,
@@ -42,7 +41,6 @@ const { substrateApi } = require('../../app/util/substrateApi')
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 const bs58 = require('base-x')(BASE58)
-const defaultRole = { [rolesEnum[0]]: USER_ALICE_TOKEN }
 
 const describeAuthOnly = AUTH_TYPE === 'JWT' ? describe : describe.skip
 const describeNoAuthOnly = AUTH_TYPE === 'NONE' ? describe : describe.skip
@@ -56,6 +54,11 @@ describe('routes', function () {
   afterEach(() => {
     nock.abortPendingRequests()
     nock.cleanAll()
+  })
+
+  let defaultRole
+  before(async () => {
+    defaultRole = { [await indexToRole(0)]: USER_ALICE_TOKEN }
   })
 
   describe('health check', function () {
@@ -530,7 +533,7 @@ describe('routes', function () {
 
         const base64Metadata = `0x${bs58.decode(base58Metadata).toString('hex').slice(4)}`
 
-        const key = utf8ToUint8Array('testFile', METADATA_KEY_LENGTH)
+        const key = utf8ToHex('testFile', METADATA_KEY_LENGTH)
         const output = { roles: new Map([[0, USER_ALICE_TOKEN]]), metadata: new Map([[key, { File: base64Metadata }]]) }
 
         await runProcess(null, [], [output])
@@ -563,7 +566,7 @@ describe('routes', function () {
         expectedResult = {
           id: lastTokenId + 1,
           creator: USER_ALICE_TOKEN,
-          roles: { [rolesEnum[0]]: USER_ALICE_TOKEN },
+          roles: { [await indexToRole(0)]: USER_ALICE_TOKEN },
           parents: [],
           children: null,
           metadata_keys: ['testFile'],
@@ -597,7 +600,7 @@ describe('routes', function () {
 
         const outputs = [
           {
-            roles: { [rolesEnum[0]]: USER_BOB_TOKEN },
+            roles: { [await indexToRole(0)]: USER_BOB_TOKEN },
             metadata: { testFile: { type: 'FILE', value: './test/data/test_file_04.txt' } },
           },
         ]
@@ -611,7 +614,7 @@ describe('routes', function () {
         expectedResult = {
           id: lastTokenId + 1,
           creator: USER_ALICE_TOKEN,
-          roles: { [rolesEnum[0]]: USER_ALICE_TOKEN },
+          roles: { [await indexToRole(0)]: USER_ALICE_TOKEN },
           parents: [],
           children: [lastTokenId + 2],
           metadata_keys: ['testFile'],
@@ -624,7 +627,7 @@ describe('routes', function () {
         expectedResult = {
           id: lastTokenId + 2,
           creator: USER_ALICE_TOKEN,
-          roles: { [rolesEnum[0]]: USER_BOB_TOKEN },
+          roles: { [await indexToRole(0)]: USER_BOB_TOKEN },
           parents: [lastTokenId + 1],
           children: null,
           metadata_keys: ['testFile'],
@@ -757,7 +760,8 @@ describe('routes', function () {
 
       test('add item - too many metadata items', async function () {
         const tooMany = {}
-        for (let i = 0; i < MAX_METADATA_COUNT + 1; i++) {
+        const maxMetadataCount = await getMaxMetadataCount()
+        for (let i = 0; i < maxMetadataCount + 1; i++) {
           tooMany[`${i}`] = { type: 'NONE' }
         }
         const outputs = [{ roles: defaultRole, metadata: tooMany }]
@@ -897,7 +901,7 @@ describe('routes', function () {
           [],
           [
             {
-              roles: { [rolesEnum[0]]: NON_MEMBER_TOKEN },
+              roles: { [await indexToRole(0)]: NON_MEMBER_TOKEN },
               metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } },
             },
           ]
@@ -925,7 +929,7 @@ describe('routes', function () {
         )
         const outputs = [
           {
-            roles: { [rolesEnum[0]]: NON_MEMBER_TOKEN },
+            roles: { [await indexToRole(0)]: NON_MEMBER_TOKEN },
             metadata: { testFile: { type: 'FILE', value: './test/data/test_file_04.txt' } },
           },
         ]
@@ -940,7 +944,7 @@ describe('routes', function () {
         const lastTokenId = lastToken.body.id
         const outputs = [
           {
-            roles: { [rolesEnum[0]]: USER_BOB_TOKEN, [rolesEnum[1]]: USER_ALICE_TOKEN },
+            roles: { [await indexToRole(0)]: USER_BOB_TOKEN, [await indexToRole(1)]: USER_ALICE_TOKEN },
             metadata: { testNone: { type: 'NONE' } },
           },
         ]
@@ -981,7 +985,9 @@ describe('routes', function () {
       })
 
       test('add item - no default role', async function () {
-        const outputs = [{ roles: { [rolesEnum[1]]: USER_ALICE_TOKEN }, metadata: { testNone: { type: 'NONE' } } }]
+        const outputs = [
+          { roles: { [await indexToRole(1)]: USER_ALICE_TOKEN }, metadata: { testNone: { type: 'NONE' } } },
+        ]
         const runProcessResult = await postRunProcess(app, authToken, [], outputs)
         expect(runProcessResult.status).to.equal(400)
         expect(runProcessResult.body.message).to.contain('default')
@@ -990,7 +996,7 @@ describe('routes', function () {
       test('add item - invalid role', async function () {
         const outputs = [
           {
-            roles: { [rolesEnum[0]]: USER_ALICE_TOKEN, InvalidRole: USER_ALICE_TOKEN },
+            roles: { [await indexToRole(0)]: USER_ALICE_TOKEN, InvalidRole: USER_ALICE_TOKEN },
             metadata: { testNone: { type: 'NONE' } },
           },
         ]
