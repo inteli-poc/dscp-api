@@ -159,6 +159,29 @@ jobs:
         env:
           AUTH_TYPE: ${{ matrix.auth }}
 
+  dependency-check:
+    name: Run dependency check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-node@master
+        with:
+          node-version: 16.x
+      - name: Use npm v8
+        run: npm install -g npm@8
+      - name: Cache Node.js modules
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
+          key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-
+            ${{ runner.OS }}-
+      - name: Install Packages
+        run: npm ci
+      - name: Dependency Check
+        run: npm run depcheck
+
   check-version:
     name: 'Check version'
     runs-on: ubuntu-latest
@@ -190,6 +213,7 @@ jobs:
       - helm-lint
       - helm-test
       - lint
+      - dependency-check
       - tests
       - check-version
     runs-on: ubuntu-latest
@@ -209,11 +233,16 @@ jobs:
         with:
           buildkitd-flags: '--debug'
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: $GITHUB_ACTOR
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Dockerhub Registry
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DSCP_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DSCP_DOCKERHUB_TOKEN }}
       - name: Publish multi-arch image
         uses: docker/build-push-action@v2
         with:
@@ -223,8 +252,9 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           tags: |
-            ghcr.io/${{ needs.preconditions.outputs.org_name }}/${{ needs.preconditions.outputs.repo_name }}:${{ needs.check-version.outputs.version }}            
+            ghcr.io/${{ needs.preconditions.outputs.org_name }}/${{ needs.preconditions.outputs.repo_name }}:${{ needs.check-version.outputs.version }}
             ghcr.io/${{ needs.preconditions.outputs.org_name }}/${{ needs.preconditions.outputs.repo_name }}:latest
+            ${{ needs.preconditions.outputs.org_name }}/${{ needs.preconditions.outputs.repo_name }}:latest
           labels: |
             org.opencontainers.image.title=${{ needs.preconditions.outputs.repo_name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
