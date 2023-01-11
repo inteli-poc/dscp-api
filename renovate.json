@@ -5,15 +5,43 @@
   ],
   "baseBranches": ["main"],
   "enabledManagers": ["npm", "github-actions", "helmv3", "docker-compose", "dockerfile"],
-  "rangeStrategy": "replace",
+  "rangeStrategy": "widen",
   "bumpVersion": "patch",
   "timezone": "Europe/London",
   "updateLockFiles": true,
   "packageRules": [
     {
       "matchPackagePatterns": ["*"],
+      "matchManagers": [
+        "npm"
+      ],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "all non-major dependencies"
+      "groupName": "npm - all non-major dependencies"
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "github-actions - all dependencies"
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "docker - all dependencies"
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchManagers": [
+        "helmv3"
+      ],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "helm - all dependencies"
     }
   ]
 }
