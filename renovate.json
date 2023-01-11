@@ -5,7 +5,7 @@
   ],
   "baseBranches": ["main"],
   "enabledManagers": ["npm", "github-actions", "helmv3", "docker-compose", "dockerfile"],
-  "rangeStrategy": "widen",
+  "rangeStrategy": "replace",
   "bumpVersion": "patch",
   "timezone": "Europe/London",
   "updateLockFiles": true,
