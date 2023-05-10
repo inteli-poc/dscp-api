@@ -1,4 +1,4 @@
-import mockJwks from 'mock-jwks'
+import createJWKSMock from 'mock-jwks'
 import { describe, test, before, after, afterEach } from 'mocha'
 import { expect } from 'chai'
 import nock from 'nock'
@@ -9,7 +9,6 @@ import { createHttpServer } from '../../app/server.js'
 import {
   healthCheck,
   postRunProcess,
-  postRunProcessWithProcess,
   postRunProcessNoFileAttach,
   getItemRoute,
   getItemMetadataRoute,
@@ -46,12 +45,11 @@ const {
   AUTH_TYPE,
 } = env
 
-// it's super weird that we have to do this. createJWKSMock is declared as the default
-// export of mock-jwks but module resolution isn't working. Issue in mocha?
-const createJWKSMock = mockJwks.default
-
 const describeAuthOnly = AUTH_TYPE === 'JWT' ? describe : describe.skip
 const describeNoAuthOnly = AUTH_TYPE === 'NONE' ? describe : describe.skip
+
+const getSpecVersion = (actualResult) => actualResult?.body?.details?.api?.detail?.runtime?.versions?.spec
+const getIpfsVersion = (actualResult) => actualResult?.body?.details?.ipfs?.detail?.version
 
 describe('routes', function () {
   before(async () => {
@@ -84,8 +82,8 @@ describe('routes', function () {
       })
 
       test('health check', async function () {
-        const response = healthcheckResponses.ok
         const actualResult = await healthCheck(app)
+        const response = healthcheckResponses.ok(getSpecVersion(actualResult), getIpfsVersion(actualResult))
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
@@ -118,8 +116,8 @@ describe('routes', function () {
       })
 
       test('service down', async function () {
-        const response = healthcheckResponses.substrateDown
         const actualResult = await healthCheck(app)
+        const response = healthcheckResponses.substrateDown(getIpfsVersion(actualResult))
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
@@ -159,8 +157,8 @@ describe('routes', function () {
       })
 
       test('service up', async function () {
-        const response = healthcheckResponses.ok
         const actualResult = await healthCheck(app)
+        const response = healthcheckResponses.ok(getSpecVersion(actualResult), getIpfsVersion(actualResult))
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
@@ -192,8 +190,8 @@ describe('routes', function () {
       })
 
       test('service down', async function () {
-        const response = healthcheckResponses.ipfsDown
         const actualResult = await healthCheck(app)
+        const response = healthcheckResponses.ipfsDown(getSpecVersion(actualResult))
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
@@ -205,7 +203,7 @@ describe('routes', function () {
       before(function () {
         nock(`http://${IPFS_HOST}:${IPFS_PORT}`)
           .post('/api/v0/version')
-          .reply(200, { Version: '0.13.1' })
+          .reply(200, { Version: '0.18.1' })
           .post('/api/v0/swarm/peers')
           .reply(200, { Peers: null })
       })
@@ -225,8 +223,11 @@ describe('routes', function () {
       })
 
       test('service down', async function () {
-        const response = healthcheckResponses.ipfsDownNoPeers
         const actualResult = await healthCheck(app)
+        const response = healthcheckResponses.ipfsDownNoPeers(
+          getSpecVersion(actualResult),
+          getIpfsVersion(actualResult)
+        )
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
@@ -239,7 +240,7 @@ describe('routes', function () {
         nock(`http://${IPFS_HOST}:${IPFS_PORT}`)
           .post('/api/v0/version')
           .delayBody(2000) // 2 seconds
-          .reply(200, { Version: '0.13.1' })
+          .reply(200, { Version: '0.18.1' })
           .post('/api/v0/swarm/peers')
           .reply(200, { Peers: [{ Peer: '1' }] })
       })
@@ -259,8 +260,8 @@ describe('routes', function () {
       })
 
       test('service down', async function () {
-        const response = healthcheckResponses.ipfsDownTimeout
         const actualResult = await healthCheck(app)
+        const response = healthcheckResponses.ipfsDownTimeout(getSpecVersion(actualResult))
         expect(actualResult.status).to.equal(response.code)
         expect(actualResult.body).to.deep.equal(response.body)
       })
@@ -273,6 +274,7 @@ describe('routes', function () {
     let authToken
     let statusHandler
     const process = {}
+    const failProcess = { name: 'fail' }
 
     before(async function () {
       const server = await createHttpServer()
@@ -296,13 +298,14 @@ describe('routes', function () {
     })
 
     withNewTestProcess(process)
+    withNewTestProcess(failProcess, [{ Restriction: 'Fail' }])
 
     describe('happy path', function () {
       test('add and get item - single metadata FILE', async function () {
         const outputs = [
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
         const lastToken = await getLastTokenIdRoute(app, authToken)
@@ -317,15 +320,15 @@ describe('routes', function () {
 
       test('add item that consumes a parent', async function () {
         // add parent to be consumed
-        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
+        const firstToken = await postRunProcess(app, authToken, process, [], [{ roles: defaultRole, metadata: {} }])
         expect(firstToken.status).to.equal(200)
         const lastToken = await getLastTokenIdRoute(app, authToken)
         const firstTokenId = lastToken.body.id
 
         // add new token that will consume
         const inputs = [firstTokenId]
-        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: 0 }]
-        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
+        const outputs = [{ roles: defaultRole, metadata: {} }]
+        const secondToken = await postRunProcess(app, authToken, process, inputs, outputs)
 
         expect(secondToken.body).to.have.length(1)
         expect(secondToken.status).to.equal(200)
@@ -333,12 +336,11 @@ describe('routes', function () {
         const getItemResult = await getItemRoute(app, authToken, { id: firstTokenId + 1 })
         expect(getItemResult.status).to.equal(200)
         expect(getItemResult.body.id).to.equal(firstTokenId + 1)
-        expect(getItemResult.body.original_id).to.equal(firstTokenId)
       })
 
       test('add and get item - single metadata LITERAL', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testLiteral: { type: 'LITERAL', value: 'notAFile' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -353,7 +355,7 @@ describe('routes', function () {
 
       test('add and get item - single metadata TOKEN_ID', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testTokenId: { type: 'TOKEN_ID', value: '1' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -368,7 +370,7 @@ describe('routes', function () {
 
       test('add and get item - single NONE', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testNone: { type: 'NONE' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -393,7 +395,7 @@ describe('routes', function () {
             },
           },
         ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -448,7 +450,7 @@ describe('routes', function () {
             },
           },
         ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -471,7 +473,7 @@ describe('routes', function () {
             },
           },
         ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -494,7 +496,7 @@ describe('routes', function () {
             },
           },
         ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -520,7 +522,7 @@ describe('routes', function () {
           },
         ]
 
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 
@@ -542,9 +544,12 @@ describe('routes', function () {
         const base64Metadata = `0x${Buffer.from(bs58.decode(base58Metadata)).toString('hex').slice(4)}`
 
         const key = utf8ToHex('testFile', METADATA_KEY_LENGTH)
-        const output = { roles: new Map([[0, USER_ALICE_TOKEN]]), metadata: new Map([[key, { File: base64Metadata }]]) }
+        const output = {
+          roles: new Map([[0, USER_ALICE_TOKEN]]),
+          metadata: new Map([[key, { File: base64Metadata }]]),
+        }
 
-        await runProcess(null, [], [output])
+        await runProcess(process, [], [output])
 
         await getItemRoute(app, authToken, { id: lastToken.body.id + 1 })
 
@@ -564,7 +569,7 @@ describe('routes', function () {
         const outputs = [
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
-        const actualResult = await postRunProcess(app, authToken, [], outputs)
+        const actualResult = await postRunProcess(app, authToken, process, [], outputs)
 
         expect(actualResult.status).to.equal(200)
         expect(actualResult.body).to.deep.equal(expectedResult)
@@ -597,6 +602,7 @@ describe('routes', function () {
         await postRunProcess(
           app,
           authToken,
+          process,
           [],
           [
             {
@@ -612,7 +618,7 @@ describe('routes', function () {
             metadata: { testFile: { type: 'FILE', value: './test/data/test_file_04.txt' } },
           },
         ]
-        const actualResult = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
+        const actualResult = await postRunProcess(app, authToken, process, [lastTokenId + 1], outputs)
 
         expect(actualResult.status).to.equal(200)
         expect(actualResult.body).to.deep.equal(expectedResult)
@@ -655,26 +661,7 @@ describe('routes', function () {
 
         expect(res.body).deep.equal(expectedResult)
       })
-
-      test('with named process', async function () {
-        const outputs = [
-          { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
-        ]
-        const runProcessResult = await postRunProcessWithProcess(app, authToken, process, [], outputs)
-
-        expect(runProcessResult.status).to.equal(200)
-        expect(runProcessResult.body).to.have.length(1)
-
-        const tokenId = { id: runProcessResult.body[0] }
-
-        const getItemResult = await getItemRoute(app, authToken, tokenId)
-        expect(getItemResult.status).to.equal(200)
-        expect(getItemResult.body.id).to.equal(tokenId.id)
-        expect(getItemResult.body.metadata_keys).to.deep.equal(['testFile'])
-        expect(moment(getItemResult.body.timestamp, moment.ISO_8601, true).isValid()).to.be.true
-      })
     })
-
     describe('invalid requests', function () {
       test('invalid bearer token', async function () {
         const result = await getLastTokenIdRoute(app, 'invalidToken')
@@ -686,7 +673,7 @@ describe('routes', function () {
           { roles: defaultRole, metadata: { testFile1: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
 
-        const runProcessResult = await postRunProcessNoFileAttach(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcessNoFileAttach(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('no attached file')
         expect(runProcessResult.status).to.equal(400)
       })
@@ -694,7 +681,7 @@ describe('routes', function () {
       test('add item - metadataKey too long', async function () {
         const metadataKey = 'a'.repeat(METADATA_KEY_LENGTH + 1)
         const outputs = [{ roles: defaultRole, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('too long')
         expect(runProcessResult.status).to.equal(400)
       })
@@ -702,42 +689,42 @@ describe('routes', function () {
       test('add item - metadataKey too long (multibyte character)', async function () {
         const metadataKey = '£'.repeat(METADATA_KEY_LENGTH / 2 + 1)
         const outputs = [{ roles: defaultRole, metadata: { [metadataKey]: { type: 'LITERAL', value: 'test' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('too long')
         expect(runProcessResult.status).to.equal(400)
       })
 
       test('add item - invalid metadata type', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'INVALID', value: 'test' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('invalid type')
         expect(runProcessResult.status).to.equal(400)
       })
 
       test('add item - null metadata', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testKey: null } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('invalid type')
         expect(runProcessResult.status).to.equal(400)
       })
 
       test('add item - metadata FILE without value field', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'FILE' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.equal('File metadata requires a value field')
         expect(runProcessResult.status).to.equal(400)
       })
 
       test('add item - metadata LITERAL without value field', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'LITERAL' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.equal('Literal metadata requires a value field')
         expect(runProcessResult.status).to.equal(400)
       })
 
       test('add item - metadata TOKEN_ID without value field', async function () {
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'TOKEN_ID' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.equal('TokenId metadata requires a value field')
         expect(runProcessResult.status).to.equal(400)
       })
@@ -745,7 +732,7 @@ describe('routes', function () {
       test('add item - metadata LITERAL value too long', async function () {
         const literalValue = 'a'.repeat(METADATA_VALUE_LITERAL_LENGTH + 1)
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'LITERAL', value: literalValue } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('too long')
         expect(runProcessResult.status).to.equal(400)
       })
@@ -753,7 +740,7 @@ describe('routes', function () {
       test('add item - metadata LITERAL value too long (multibyte character)', async function () {
         const literalValue = '£'.repeat(METADATA_VALUE_LITERAL_LENGTH / 2 + 1)
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'LITERAL', value: literalValue } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('too long')
         expect(runProcessResult.status).to.equal(400)
       })
@@ -761,7 +748,7 @@ describe('routes', function () {
       test('add item - metadata TOKEN_ID value is invalid tokenId', async function () {
         const invalidToken = 'notAToken'
         const outputs = [{ roles: defaultRole, metadata: { testKey: { type: 'TOKEN_ID', value: invalidToken } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.equal('Invalid metadata tokenId')
         expect(runProcessResult.status).to.equal(400)
       })
@@ -774,86 +761,9 @@ describe('routes', function () {
         }
         const outputs = [{ roles: defaultRole, metadata: tooMany }]
 
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.body.message).to.contain('too many')
         expect(runProcessResult.status).to.equal(400)
-      })
-
-      test('add item with out of range index for parent', async function () {
-        // add parent to be consumed
-        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
-        expect(firstToken.status).to.equal(200)
-        const lastToken = await getLastTokenIdRoute(app, authToken)
-        const firstTokenId = lastToken.body.id
-
-        // add new token with out of range parent_index
-        const inputs = [firstTokenId]
-        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: 99 }]
-        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
-
-        expect(secondToken.body.message).to.equal('Parent index out of range')
-        expect(secondToken.status).to.equal(400)
-      })
-
-      test('add item with parent_index < 0', async function () {
-        // add parent to be consumed
-        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
-        expect(firstToken.status).to.equal(200)
-        const lastToken = await getLastTokenIdRoute(app, authToken)
-        const firstTokenId = lastToken.body.id
-
-        // add new token with out of range parent_index
-        const inputs = [firstTokenId]
-        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: -1 }]
-        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
-
-        expect(secondToken.body.message).to.equal('Parent index out of range')
-        expect(secondToken.status).to.equal(400)
-      })
-
-      test('add item with parent_index === inputs.length', async function () {
-        // add parent to be consumed
-        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
-        expect(firstToken.status).to.equal(200)
-        const lastToken = await getLastTokenIdRoute(app, authToken)
-        const firstTokenId = lastToken.body.id
-
-        // add new token with out of range parent_index
-        const inputs = [firstTokenId]
-        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: 1 }]
-        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
-
-        expect(secondToken.body.message).to.equal('Parent index out of range')
-        expect(secondToken.status).to.equal(400)
-      })
-
-      test('add multiple items with same parent', async function () {
-        // add parent to be consumed
-        const firstToken = await postRunProcess(app, authToken, [], [{ roles: defaultRole, metadata: {} }])
-        expect(firstToken.status).to.equal(200)
-        const lastToken = await getLastTokenIdRoute(app, authToken)
-        const firstTokenId = lastToken.body.id
-
-        // add new tokens with duplicate parent_index
-        const inputs = [firstTokenId]
-        const outputs = [
-          { roles: defaultRole, metadata: {}, parent_index: 0 },
-          { roles: defaultRole, metadata: {}, parent_index: 0 },
-        ]
-        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
-
-        expect(secondToken.body.message).to.equal('Duplicate parent index used')
-        expect(secondToken.status).to.equal(400)
-      })
-
-      test('add item with parent but no inputs', async function () {
-        // add new token with no inputs
-        const inputs = []
-        const outputs = [{ roles: defaultRole, metadata: {}, parent_index: 99 }]
-        const secondToken = await postRunProcess(app, authToken, inputs, outputs)
-
-        expect(secondToken.body.message).to.equal('Parent index out of range')
-        expect(secondToken.status).to.equal(400)
       })
 
       test('get item - missing ID', async function () {
@@ -906,6 +816,7 @@ describe('routes', function () {
         const actualResult = await postRunProcess(
           app,
           authToken,
+          process,
           [],
           [
             {
@@ -927,6 +838,7 @@ describe('routes', function () {
         await postRunProcess(
           app,
           authToken,
+          process,
           [],
           [
             {
@@ -941,28 +853,10 @@ describe('routes', function () {
             metadata: { testFile: { type: 'FILE', value: './test/data/test_file_04.txt' } },
           },
         ]
-        const actualResult = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
+        const actualResult = await postRunProcess(app, authToken, process, [lastTokenId + 1], outputs)
 
         expect(actualResult.status).to.equal(400)
         expect(actualResult.body).to.deep.equal(expectedResult)
-      })
-
-      test('failure to destroy token with member not having correct role', async function () {
-        const lastToken = await getLastTokenIdRoute(app, authToken)
-        const lastTokenId = lastToken.body.id
-        const outputs = [
-          {
-            roles: { [await indexToRole(0)]: USER_BOB_TOKEN, [await indexToRole(1)]: USER_ALICE_TOKEN },
-            metadata: { testNone: { type: 'NONE' } },
-          },
-        ]
-        await postRunProcess(app, authToken, [], outputs)
-
-        const actualResult = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
-
-        expect(actualResult.status).to.equal(400)
-        expect(actualResult.body).to.have.property('message')
-        expect(actualResult.body.message).to.contain(lastTokenId + 1)
       })
 
       test('failure to burn a token twice', async function () {
@@ -974,12 +868,12 @@ describe('routes', function () {
             metadata: { testNone: { type: 'NONE' } },
           },
         ]
-        await postRunProcess(app, authToken, [], outputs)
+        await postRunProcess(app, authToken, process, [], outputs)
 
-        const firstBurn = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
+        const firstBurn = await postRunProcess(app, authToken, process, [lastTokenId + 1], outputs)
         expect(firstBurn.status).to.equal(200)
 
-        const secondBurn = await postRunProcess(app, authToken, [lastTokenId + 1], outputs)
+        const secondBurn = await postRunProcess(app, authToken, process, [lastTokenId + 1], outputs)
         expect(secondBurn.status).to.equal(400)
         expect(secondBurn.body).to.have.property('message')
         expect(secondBurn.body.message).to.contain(lastTokenId + 1)
@@ -987,18 +881,9 @@ describe('routes', function () {
 
       test('add item - no roles', async function () {
         const outputs = [{ metadata: { testNone: { type: 'NONE' } } }]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.status).to.equal(400)
         expect(runProcessResult.body.message).to.contain('roles')
-      })
-
-      test('add item - no default role', async function () {
-        const outputs = [
-          { roles: { [await indexToRole(1)]: USER_ALICE_TOKEN }, metadata: { testNone: { type: 'NONE' } } },
-        ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
-        expect(runProcessResult.status).to.equal(400)
-        expect(runProcessResult.body.message).to.contain('default')
       })
 
       test('add item - invalid role', async function () {
@@ -1008,9 +893,19 @@ describe('routes', function () {
             metadata: { testNone: { type: 'NONE' } },
           },
         ]
-        const runProcessResult = await postRunProcess(app, authToken, [], outputs)
+        const runProcessResult = await postRunProcess(app, authToken, process, [], outputs)
         expect(runProcessResult.status).to.equal(400)
         expect(runProcessResult.body.message).to.contain('role')
+      })
+
+      test('no process', async function () {
+        const outputs = [
+          { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
+        ]
+        const runProcessResult = await postRunProcess(app, authToken, undefined, [], outputs)
+
+        expect(runProcessResult.status).to.equal(400)
+        expect(runProcessResult.body.message).to.equal('Request missing required field `process`')
       })
 
       test("process version that doesn't exist", async function () {
@@ -1018,7 +913,7 @@ describe('routes', function () {
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
         const version = process.version + 1
-        const runProcessResult = await postRunProcessWithProcess(
+        const runProcessResult = await postRunProcess(
           app,
           authToken,
           {
@@ -1037,7 +932,7 @@ describe('routes', function () {
         const outputs = [
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
-        const runProcessResult = await postRunProcessWithProcess(
+        const runProcessResult = await postRunProcess(
           app,
           authToken,
           {
@@ -1061,7 +956,7 @@ describe('routes', function () {
         const id = Array(PROCESS_IDENTIFIER_LENGTH + 1)
           .fill('a')
           .join('')
-        const runProcessResult = await postRunProcessWithProcess(
+        const runProcessResult = await postRunProcess(
           app,
           authToken,
           {
@@ -1081,7 +976,7 @@ describe('routes', function () {
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
         const version = null
-        const runProcessResult = await postRunProcessWithProcess(
+        const runProcessResult = await postRunProcess(
           app,
           authToken,
           {
@@ -1101,7 +996,7 @@ describe('routes', function () {
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
         const version = 3.14
-        const runProcessResult = await postRunProcessWithProcess(
+        const runProcessResult = await postRunProcess(
           app,
           authToken,
           {
@@ -1121,7 +1016,7 @@ describe('routes', function () {
           { roles: defaultRole, metadata: { testFile: { type: 'FILE', value: './test/data/test_file_01.txt' } } },
         ]
         const version = Number.MAX_SAFE_INTEGER
-        const runProcessResult = await postRunProcessWithProcess(
+        const runProcessResult = await postRunProcess(
           app,
           authToken,
           {
@@ -1134,6 +1029,12 @@ describe('routes', function () {
 
         expect(runProcessResult.status).to.equal(400)
         expect(runProcessResult.body.message).to.equal(`Invalid process version: ${version}`)
+      })
+
+      test('invalid inputs for process', async function () {
+        const runProcessResult = await postRunProcess(app, authToken, failProcess, [], [])
+        expect(runProcessResult.status).to.equal(400)
+        expect(runProcessResult.body.message).to.equal(`Error processing extrinsic: ProcessInvalid`)
       })
     })
   })
@@ -1168,7 +1069,7 @@ describe('routes', function () {
             },
           },
         ]
-        const runProcessResult = await postRunProcess(app, null, [], outputs)
+        const runProcessResult = await postRunProcess(app, null, process, [], outputs)
         expect(runProcessResult.body).to.have.length(1)
         expect(runProcessResult.status).to.equal(200)
 

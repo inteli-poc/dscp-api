@@ -1,4 +1,4 @@
-import mockJwks from 'mock-jwks'
+import createJWKSMock from 'mock-jwks'
 import { describe, test, before, after } from 'mocha'
 import { expect } from 'chai'
 import nock from 'nock'
@@ -12,13 +12,10 @@ import { getItemRoute, getLastTokenIdRoute } from '../helper/routeHelper.js'
 const USER_ALICE_TOKEN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 import { indexToRole } from '../../app/util/appUtil.js'
 import env from '../../app/env.js'
+import { withNewTestProcess } from '../helper/substrateHelper.js'
 
 const { API_MAJOR_VERSION, AUTH_ISSUER, AUTH_AUDIENCE, AUTH_TYPE } = env
 const describeAuthOnly = AUTH_TYPE === 'JWT' ? describe : describe.skip
-
-// it's super weird that we have to do this. createJWKSMock is declared as the default
-// export of mock-jwks but module resolution isn't working. Issue in mocha?
-const createJWKSMock = mockJwks.default
 
 describeAuthOnly('Bug regression tests', function () {
   describe('API run-process is broken with file uploads (https://github.com/digicatapult/dscp-api/issues/17)', function () {
@@ -26,6 +23,7 @@ describeAuthOnly('Bug regression tests', function () {
     let jwksMock
     let authToken
     let statusHandler
+    let process = {}
 
     before(async () => {
       nock.disableNetConnect()
@@ -50,6 +48,8 @@ describeAuthOnly('Bug regression tests', function () {
       })
     })
 
+    withNewTestProcess(process)
+
     after(async function () {
       await jwksMock.stop()
     })
@@ -70,6 +70,7 @@ describeAuthOnly('Bug regression tests', function () {
         .field(
           'request',
           JSON.stringify({
+            process,
             inputs: [],
             outputs,
           })

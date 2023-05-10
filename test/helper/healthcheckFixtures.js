@@ -2,7 +2,7 @@ import env from '../../app/env.js'
 const { API_VERSION } = env
 
 export const responses = {
-  ok: {
+  ok: (dscpRuntimeVersion, ipfsVersion) => ({
     code: 200,
     body: {
       status: 'ok',
@@ -17,7 +17,7 @@ export const responses = {
               versions: {
                 authoring: 1,
                 impl: 1,
-                spec: 431,
+                spec: dscpRuntimeVersion,
                 transaction: 1,
               },
             },
@@ -26,14 +26,14 @@ export const responses = {
         ipfs: {
           status: 'ok',
           detail: {
-            version: '0.13.1',
+            version: ipfsVersion,
             peerCount: 1,
           },
         },
       },
     },
-  },
-  substrateDown: {
+  }),
+  substrateDown: (ipfsVersion) => ({
     code: 503,
     body: {
       status: 'down',
@@ -48,14 +48,14 @@ export const responses = {
         ipfs: {
           status: 'ok',
           detail: {
-            version: '0.13.1',
+            version: ipfsVersion,
             peerCount: 1,
           },
         },
       },
     },
-  },
-  ipfsDown: {
+  }),
+  ipfsDown: (dscpRuntimeVersion) => ({
     code: 503,
     body: {
       status: 'down',
@@ -70,7 +70,7 @@ export const responses = {
               versions: {
                 authoring: 1,
                 impl: 1,
-                spec: 431,
+                spec: dscpRuntimeVersion,
                 transaction: 1,
               },
             },
@@ -84,8 +84,8 @@ export const responses = {
         },
       },
     },
-  },
-  ipfsDownTimeout: {
+  }),
+  ipfsDownTimeout: (dscpRuntimeVersion) => ({
     code: 503,
     body: {
       status: 'down',
@@ -100,7 +100,7 @@ export const responses = {
               versions: {
                 authoring: 1,
                 impl: 1,
-                spec: 431,
+                spec: dscpRuntimeVersion,
                 transaction: 1,
               },
             },
@@ -114,8 +114,8 @@ export const responses = {
         },
       },
     },
-  },
-  ipfsDownNoPeers: {
+  }),
+  ipfsDownNoPeers: (dscpRuntimeVersion, ipfsVersion) => ({
     code: 503,
     body: {
       status: 'down',
@@ -130,7 +130,7 @@ export const responses = {
               versions: {
                 authoring: 1,
                 impl: 1,
-                spec: 431,
+                spec: dscpRuntimeVersion,
                 transaction: 1,
               },
             },
@@ -139,11 +139,11 @@ export const responses = {
         ipfs: {
           status: 'down',
           detail: {
-            version: '0.13.1',
+            version: ipfsVersion,
             peerCount: 0,
           },
         },
       },
     },
-  },
+  }),
 }

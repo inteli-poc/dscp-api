@@ -168,6 +168,9 @@ const apiDoc = {
           Buyer: { $ref: '#/components/schemas/AccountId' },
           Supplier: { $ref: '#/components/schemas/AccountId' },
           Reviewer: { $ref: '#/components/schemas/AccountId' },
+          Optimiser: { $ref: '#/components/schemas/AccountId' },
+          MemberA: { $ref: '#/components/schemas/AccountId' },
+          MemberB: { $ref: '#/components/schemas/AccountId' },
         },
         additionalProperties: false,
         required: ['Owner'],
@@ -199,10 +202,6 @@ const apiDoc = {
           },
           metadata: {
             $ref: '#/components/schemas/Metadata',
-          },
-          parent_index: {
-            description: 'index of the inputs that this output will be uniquely assigned to',
-            type: 'number',
           },
         },
         required: ['roles', 'metadata'],

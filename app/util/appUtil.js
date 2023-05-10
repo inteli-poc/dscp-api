@@ -12,6 +12,7 @@ const bs58 = basex(BASE58)
 import env from '../env.js'
 import logger from '../logger.js'
 import { substrateApi as api, keyring } from './substrateApi.js'
+import { ExtrinsicError } from './errors.js'
 
 const {
   USER_URI,
@@ -54,11 +55,6 @@ function formatHash(filestoreResponse) {
 }
 
 export const processRoles = async (roles) => {
-  const defaultRole = await indexToRole(0)
-  if (!roles[defaultRole]) {
-    throw new Error(`Roles must include default ${defaultRole} role. Roles: ${JSON.stringify(roles)}`)
-  }
-
   if (await containsInvalidMembershipRoles(roles)) {
     throw new Error(`Request contains roles with account IDs not in the membership list`)
   }
@@ -74,7 +70,7 @@ export const processRoles = async (roles) => {
 
 export async function getMaxMetadataCount() {
   await api.isReady
-  return api.consts.simpleNFT.maxMetadataCount.toNumber()
+  return api.consts.utxoNFT.maxMetadataCount.toNumber()
 }
 
 const validMetadataValueTypes = new Set(['LITERAL', 'TOKEN_ID', 'FILE', 'NONE'])
@@ -194,7 +190,7 @@ const downloadFile = async (dirHash) => {
 
 export async function getLastTokenId() {
   await api.isReady
-  const lastTokenId = await api.query.simpleNFT.lastToken()
+  const lastTokenId = await api.query.utxoNFT.lastToken()
 
   return lastTokenId ? parseInt(lastTokenId, 10) : 0
 }
@@ -226,16 +222,25 @@ export async function getMembers() {
   return membersRaw.map((m) => m.toString())
 }
 
+function ProcessExtrinsicError(error) {
+  if (!error.isModule) {
+    return new ExtrinsicError('Unknown', 500)
+  }
+
+  const decoded = api.registry.findMetaError(error.asModule)
+  return new ExtrinsicError(decoded.name, decoded.name === 'ProcessInvalid' ? 400 : 500)
+}
+
 export async function runProcess(process, inputs, outputs) {
   if (inputs && outputs) {
     await api.isReady
     const alice = keyring.addFromUri(USER_URI)
 
-    const relevantOutputs = outputs.map(({ roles, metadata, parent_index }) => [roles, metadata, parent_index])
+    const relevantOutputs = outputs.map(({ roles, metadata }) => [roles, metadata])
     logger.debug('Running Transaction inputs: %j outputs: %j', inputs, relevantOutputs)
     return new Promise((resolve, reject) => {
       let unsub = null
-      api.tx.simpleNFT
+      api.tx.utxoNFT
         .runProcess(process, inputs, relevantOutputs)
         .signAndSend(alice, (result) => {
           logger.debug('result.status %s', JSON.stringify(result.status))
@@ -247,12 +252,11 @@ export async function runProcess(process, inputs, outputs) {
               .map(({ event: { data } }) => data[0])
 
             if (errors.length > 0) {
-              reject('ExtrinsicFailed error in simpleNFT')
+              reject(ProcessExtrinsicError(errors[0]))
             }
 
-            const tokens = result.events
-              .filter(({ event: { method } }) => method === 'Minted')
-              .map(({ event: { data } }) => data[0].toNumber())
+            const processRanEvent = result.events.find(({ event: { method } }) => method === 'ProcessRan')
+            const tokens = processRanEvent?.event?.data?.outputs?.map((x) => x.toNumber())
 
             unsub()
             resolve(tokens)
@@ -294,7 +298,7 @@ function transformItem({ originalId, createdAt, destroyedAt, ...rest }) {
 
 export async function getItem(tokenId) {
   await api.isReady
-  const itemRaw = (await api.query.simpleNFT.tokensById(tokenId)).toJSON()
+  const itemRaw = (await api.query.utxoNFT.tokensById(tokenId)).toJSON()
 
   if (!itemRaw) {
     return null
@@ -353,15 +357,12 @@ export const getReadableMetadataKeys = (metadata) => {
 
 export const validateInputIds = async (accountIds) => {
   await api.isReady
-  const userId = keyring.addFromUri(USER_URI).address
 
   return await accountIds.reduce(async (acc, id) => {
     const uptoNow = await acc
     if (!uptoNow || !id || !Number.isInteger(id)) return false
 
-    const { roles, id: echoId, children } = await getItem(id)
-    const defaultRole = await indexToRole(0)
-    if (roles[defaultRole] !== userId) return false
+    const { id: echoId, children } = await getItem(id)
 
     return children === null && echoId === id
   }, Promise.resolve(true))
